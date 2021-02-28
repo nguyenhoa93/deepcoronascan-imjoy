@@ -25,8 +25,7 @@
     "https://cdn.jsdelivr.net/npm/vuesax/dist/vuesax.css",
     "https://unpkg.com/vue/dist/vue.js",
     "https://unpkg.com/vuesax",
-    "https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.2/axios.min.js",
-    "https://cdn.jsdelivr.net/npm/material-design-icons-iconfont@6.1.0/dist/material-design-icons.min.css"
+    "https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.2/axios.min.js"
     ],
     "dependencies": [],
     "defaults": {"w": 20, "h": 10}
@@ -118,8 +117,9 @@
       async login(){
         this.$vs.loading()
         try{
-          console.log("What the heck")
           this.client = new Client(this.baseUrl)
+          console.log("Client: ", this.client)
+          console.log("Access token: ", this.client.accessToken)
         }
         catch(e){
           api.alert(`Failed to connect to the backend server, error: ${e}`)
@@ -127,7 +127,7 @@
         finally{
           this.$vs.loading.close()
         }
-      },
+      }
     }
   })
 
@@ -135,7 +135,7 @@
     async setup() {
     }
 
-    async run(my) {
+    async run(ctx) {
 
     }
   }
@@ -145,6 +145,7 @@
 
 <window lang="html">
   <div id="app">
+    <!-- <vs-button v-if="!client || !client.accessToken" style="left: 50%;top: 10;transform: translate(-50%, 0px);" @click="login()" icon="login">Login</vs-button> -->
     <div class="limiter">
         <div class="container-login100"
             style="background-image: url('https://github.com/nguyenhoa93/deepcoronascan-imjoy/raw/master/images/login-background.jpg');">
@@ -163,19 +164,18 @@
                             Login
                         </button>
                     </div>
-                    <!-- <vs-button v-if="!client || !client.accessToken" style="left: 50%;top: 10;transform: translate(-50%, 0px);" @click="login()" icon="login">Login</vs-button> -->
+                  
                     <div class="text-center p-t-90">
                         <a class="txt1" href="#">
                             Try out the demo as a guest<br>
                             <i class="fas fa-user-secret" aria-hidden="true" style='font-size:30px'></i>
                         </a>
                     </div>
-                </form>
+                  </form>
               </div>
-            </div>
-            </div>
-        <div id="dropDownSelect1"></div>
-      </div>
+          </div>
+    </div>
+  </div>
 </window>
 
 <style lang="css">
