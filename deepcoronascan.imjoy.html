@@ -1,0 +1,182 @@
+<docs lang="markdown">
+    [TODO: write documentation for this plugin.]
+</docs>
+
+<config lang="json">
+    {
+    "name": "DeepCoronaScan",
+    "type": "window",
+    "tags": [],
+    "ui": "",
+    "version": "0.1.0",
+    "cover": "",
+    "description": "[TODO: describe this plugin with one sentence.]",
+    "icon": "extension",
+    "inputs": null,
+    "outputs": null,
+    "api_version": "0.1.8",
+    "env": "",
+    "permissions": [],
+    "requirements": [
+    "https://cdn.auth0.com/js/auth0-spa-js/1.12/auth0-spa-js.production.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css",
+    "https://nguyenhoa93.github.io/deepcoronascan-imjoy/css/main.css",
+    "https://nguyenhoa93.github.io/deepcoronascan-imjoy/css/util.css",
+    "https://cdn.jsdelivr.net/npm/vuesax/dist/vuesax.css",
+    "https://unpkg.com/vue/dist/vue.js",
+    "https://unpkg.com/vuesax",
+    "https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.2/axios.min.js",
+    "https://cdn.jsdelivr.net/npm/material-design-icons-iconfont@6.1.0/dist/material-design-icons.min.css"
+    ],
+    "dependencies": [],
+    "defaults": {"w": 20, "h": 10}
+    }
+</config>
+
+<script lang="javascript">
+
+  class Client {
+    constructor(baseURL){
+      this.baseURL = baseURL
+      this.accessToken = null
+    }
+    async makeRequest(url, method, json){
+      if(!this.accessToken) {
+        await this.login()
+      }
+      if(!url.startsWith('http') && !url.startsWith('/')) url = this.baseURL + '/' + url;
+      const headers = {'Authorization': `Bearer ${this.accessToken}`}
+      let body = undefined
+      if(json){
+          headers['Content-Type'] = 'application/json'
+          body = JSON.stringify(json)
+      }
+      const response = await fetch(url, {
+        method,
+        headers,
+        body
+      })
+      const data = await response.json()
+      if(data.success){
+        return data.result
+      }
+      else{
+        throw new Error(data.detail || data.error)
+      }
+    }
+    async login(){
+      const auth0 = await createAuth0Client({
+        domain: 'imjoy.eu.auth0.com',
+        client_id: 'ofsvx6A7LdMhG0hklr5JCAEawLv4Pyse'
+      })
+      await auth0.loginWithPopup({audience: 'https://imjoy.eu.auth0.com/api/v2/'});
+      //logged in. you can get the user profile like this:
+      const user = await auth0.getUser();
+      this.isAdmin = false;
+      if(user){
+        if(!user.email_verified){
+          api.alert(`Please verify your email (${user.email}) by clicking the link sent from Auth0.`)
+          return
+        }
+        this.userInfo = user;
+        if(user['https://api.imjoy.io/roles'].includes('admin'))
+          this.isAdmin = true
+        console.log(user);
+      }
+      this.auth0 = auth0;
+      this.accessToken = await auth0.getTokenSilently({audience: 'https://imjoy.eu.auth0.com/api/v2/'});
+    }
+    async logout(){
+      if(!this.auth0) {
+        api.showMessage("You haven't logged in.")
+        return;
+      }
+      await this.auth0.logout();
+    }
+    async get(url){
+      return this.makeRequest(url, 'GET')
+    }
+    async put(url, json){
+      return this.makeRequest(url, 'PUT', json)
+    }
+    async post(url, json){
+      return this.makeRequest(url, 'POST', json)
+    }
+    async delete(url){
+      return this.makeRequest(url, 'DELETE')
+    }
+  }
+  const app = new Vue({
+    el: '#app',
+    data: {
+      title: "DeepCoronaScan",
+      baseUrl: 'https://ai.pasteur.fr',
+      style_url: "https://nguyenhoa93.github.io/deepcoronascan-imjoy",
+      client: null
+    },
+    methods: {
+      async login(){
+        this.$vs.loading()
+        try{
+          console.log(this.baseUrl)
+          this.client = new Client(this.baseUrl)
+        }
+        catch(e){
+          api.alert(`Failed to connect to the backend server, error: ${e}`)
+        }
+        finally{
+          this.$vs.loading.close()
+        }
+      },
+    }
+  })
+
+  class ImJoyPlugin {
+    async setup() {
+    }
+
+    async run(my) {
+
+    }
+  }
+
+  api.export(new ImJoyPlugin())
+</script>
+
+<window lang="html">
+  <div id="app">
+    <div class="limiter">
+        <div class="container-login100"
+            style="background-image: url('https://github.com/nguyenhoa93/deepcoronascan-imjoy/raw/master/images/login-background.jpg');">
+            <div class="wrap-login100">
+                <form class="login100-form validate-form">
+                    <span class="login100-form-logo">
+                        <i class="fas fa-lungs-virus" aria-hidden="true"></i>
+                    </span>
+
+                    <span class="login100-form-title p-b-34 p-t-27">
+                        DeepCoronaScan
+                    </span>
+
+                    <div class="container-login100-form-btn">
+                        <button class="login100-form-btn" @click="login()">
+                            Login
+                        </button>
+                    </div>
+                    <div class="text-center p-t-90">
+                        <a class="txt1" href="#">
+                            Try out the demo as a guest<br>
+                            <i class="fas fa-user-secret" aria-hidden="true" style='font-size:30px'></i>
+                        </a>
+                    </div>
+                </form>
+              </div>
+            </div>
+            </div>
+        <div id="dropDownSelect1"></div>
+      </div>
+</window>
+
+<style lang="css">
+    
+</style>
