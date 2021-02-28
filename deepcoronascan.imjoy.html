@@ -118,7 +118,7 @@
       async login(){
         this.$vs.loading()
         try{
-          console.log(this.baseUrl)
+          console.log("What the heck")
           this.client = new Client(this.baseUrl)
         }
         catch(e){
@@ -159,10 +159,11 @@
                     </span>
 
                     <div class="container-login100-form-btn">
-                        <button class="login100-form-btn" @click="login()">
+                        <button class="login100-form-btn" v-if="!client || !client.accessToken" @click="login()">
                             Login
                         </button>
                     </div>
+                    <!-- <vs-button v-if="!client || !client.accessToken" style="left: 50%;top: 10;transform: translate(-50%, 0px);" @click="login()" icon="login">Login</vs-button> -->
                     <div class="text-center p-t-90">
                         <a class="txt1" href="#">
                             Try out the demo as a guest<br>
