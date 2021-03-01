@@ -26,7 +26,6 @@
   "https://unpkg.com/vue/dist/vue.js",
   "https://unpkg.com/vuesax",
   "https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.2/axios.min.js",
-  "https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.22/vue.min.js",
   "https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"
   ],
   "dependencies": [],
@@ -112,6 +111,7 @@ const app = new Vue({
   el: '#app',
   data: {
     client: null,
+    tasks: null,
     baseUrl: 'https://ai.pasteur.fr'
   },
   methods: {
