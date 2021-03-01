@@ -120,6 +120,7 @@ const app = new Vue({
       try{
         this.client = new Client(this.baseUrl)
         this.tasks = await this.client.get(`${this.baseUrl}/datasets`)
+        $("#authen-layout").show()
         console.log("Client: ", this.client)
       }
       catch(e){
@@ -133,6 +134,7 @@ const app = new Vue({
     accessPublic(){
       $("#login-layout").hide()
       $("#public-layout").show()
+      $("#authen-layout").hide()
     }
   }
 })
@@ -177,7 +179,7 @@ api.export(new ImJoyPlugin())
     </div>
   </div>
   
-  <div id="authen-layout" v-if="client">
+  <div id="authen-layout" v-if="client" style="display:none">
     <h1> Login success </h1>
   </div>
 
