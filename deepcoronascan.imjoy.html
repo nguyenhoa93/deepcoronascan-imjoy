@@ -20,7 +20,7 @@
   "requirements": [
   "https://cdn.auth0.com/js/auth0-spa-js/1.12/auth0-spa-js.production.js",
   "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css",
-  "https://nguyenhoa93.github.io/deepcoronascan-imjoy/css/login.css",
+  "https://nguyenhoa93.github.io/deepcoronascan-imjoy/css/main.css",
   "https://nguyenhoa93.github.io/deepcoronascan-imjoy/css/util.css",
   "https://cdn.jsdelivr.net/npm/vuesax/dist/vuesax.css",
   "https://unpkg.com/vue/dist/vue.js",
@@ -120,7 +120,12 @@ const app = new Vue({
       try{
         this.client = new Client(this.baseUrl)
         this.tasks = await this.client.get(`${this.baseUrl}/datasets`)
-        $("#authen-layout").show()
+        if (this.client != null) {
+          $("#logout-but").show()
+          $("#avatar-img").show()
+          $("#avatar-img").text(this.client.userInfo.name.charAt(0))
+          $("#eval-cam").show()
+        }
         console.log("Client: ", this.client)
       }
       catch(e){
@@ -131,8 +136,15 @@ const app = new Vue({
       }
     },
 
+    logout(){
+      this.client = null
+      $("#logout-but").hide()
+      $("#avatar-img").hide()
+      $("#eval-cam").hide()
+    },
+
     accessPublic(){
-      $("#login-layout").hide()
+      $("#desclaimer-layout").hide()
       $("#public-layout").show()
       $("#authen-layout").hide()
     }
@@ -154,7 +166,22 @@ api.export(new ImJoyPlugin())
 
 <window lang="html">
 <div id="app">
-  <div id="login-layout" v-if="!client || !client.accessToken" class="container-login100" style="background-image: url('https://github.com/nguyenhoa93/deepcoronascan-imjoy/raw/master/images/login-background.jpg');">
+  <div class="header" style="bacground-color:red;">
+    <a class="logo" href="https://research.pasteur.fr/en/team/imaging-and-modeling/" target="_blank">Imaging and Modeling Unit</a>
+    <div class="header-right">
+      <div class="dropdown-item container-login100-form-btn">
+        <button class="login100-form-btn" v-if="!client || !client.accessToken" @click="login()">
+            Login
+        </button>
+        <button id="logout-but" class="login100-form-btn" style="display:none" @click="logout()">
+            Logout
+        </button>
+        <div id="avatar-img" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="desclaimer-layout" class="container-login100" style="background-image: url('https://github.com/nguyenhoa93/deepcoronascan-imjoy/raw/master/images/login-background.jpg');">
     <div class="wrap-login100">
       <span class="login100-form-logo">
         <i class="fas fa-lungs-virus" aria-hidden="true"></i>
@@ -164,16 +191,24 @@ api.export(new ImJoyPlugin())
           DeepCoronaScan
       </span>
 
+       <div class="text-center p-t-10 p-b-30">
+         <hr>
+        <font size="+1" color="#B03A2E">
+          <b><i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
+          DISCLAIMER: This tool is only used for research purpose, NOT ready for medical diagnosis.</b>
+        </font>
+        <br>
+        <hr>
+        <br>
+        By clicking the following button(s), I confirm to have understood the disclaimer.
+      </div>
+
       <div class="container-login100-form-btn">
         <button class="login100-form-btn" @click="login()">
-            Login
+            Demo
         </button>
-      </div>
-    
-      <div class="text-center p-t-90">
-        <button @click="accessPublic()">
-          Try out the demo as a guest<br>
-          <i class="fas fa-user-secret" aria-hidden="true" style='font-size:30px'></i>
+        <button id="eval-cam" class="login100-form-btn" style="display:none">
+            GradCAM Evaluation
         </button>
       </div>     
     </div>
@@ -187,9 +222,35 @@ api.export(new ImJoyPlugin())
     <h1>Update soon</h1>
     <i class="fas fa-user-secret" aria-hidden="true" style='font-size:30px'></i>
   </div>
+
+  <div class="wrapper-footer">
+    <div class="container">
+      <footer class="footer">
+        <a href="https://sites.google.com/site/imagingandmodeling/" target="_blank">
+          <i class="svg-icon googleplus"></i>
+        </a>
+        <a href="https://twitter.com/ImodLab" target="_blank">
+          <i class="svg-icon twitter"></i>
+        </a>
+        <a href="https://github.com/imodpasteur" target="_blank">
+          <i class="svg-icon github"></i>
+        </a>
+      </footer>
+    </div>
+  </div>
 </div>
 </window>
 
 <style lang="css">
-  
+#avatar-img {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #2193b0;
+  font-size: 30px;
+  color: #fff;
+  text-align: center;
+  line-height: 50px;
+  margin: 0px 0;
+}
 </style>
