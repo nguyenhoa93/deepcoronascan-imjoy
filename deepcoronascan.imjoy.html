@@ -18,7 +18,8 @@
   "env": "",
   "permissions": [],
   "requirements": [
-  "https://cdn.auth0.com/js/auth0-spa-js/1.12/auth0-spa-js.production.js",
+  "https://cdn.auth0.com/js/lock/11.28.1/lock.min.js",
+  "https://cdn.auth0.com/js/auth0-spa-js/1.13.6/auth0-spa-js.production.js",
   "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css",
   "https://nguyenhoa93.github.io/deepcoronascan-imjoy/css/main.css",
   "https://nguyenhoa93.github.io/deepcoronascan-imjoy/css/util.css",
@@ -26,10 +27,12 @@
   "https://unpkg.com/vue/dist/vue.js",
   "https://unpkg.com/vuesax",
   "https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.2/axios.min.js",
-  "https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"
+  "https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js",
+  "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css",
+  "https://kitware.github.io/itk-vtk-viewer/app/itkVtkViewerCDN.js"
   ],
   "dependencies": [],
-  "defaults": {"w": 20, "h": 10}
+  "defaults": {"w": 40, "h": 10}
   }
 </config>
 
@@ -71,7 +74,8 @@ class Client {
     })
     await auth0.loginWithPopup({audience: 'https://imjoy.eu.auth0.com/api/v2/'});
     //logged in. you can get the user profile like this:
-    const user = await auth0.getUser();
+    const user = await auth0.getUser({audience: 'https://imjoy.eu.auth0.com/api/v2/'});
+    // const user = await auth0.getUser();
     this.isAdmin = false;
     if(user){
       if(!user.email_verified){
@@ -91,7 +95,7 @@ class Client {
       api.showMessage("You haven't logged in.")
       return;
     }
-    await this.auth0.logout();
+    await this.auth0.logout({returnTo: window.location.origin});
   }
   async get(url){
     return this.makeRequest(url, 'GET')
@@ -119,14 +123,15 @@ const app = new Vue({
       this.$vs.loading()
       try{
         this.client = new Client(this.baseUrl)
-        this.tasks = await this.client.get(`${this.baseUrl}/datasets`)
-        if (this.client != null) {
-          $("#logout-but").show()
-          $("#avatar-img").show()
+        this.tasks = await this.client.get(`${this.baseUrl}/tasks`)
+        console.log("Client: ", this.client)
+        console.log("Tasks: ", this.tasks)
+        if (this.client.user != "undefined") {
+          // $("#logout-but").show()
+          // $("#avatar-img").show()
           $("#avatar-img").text(this.client.userInfo.name.charAt(0))
           $("#eval-cam").show()
         }
-        console.log("Client: ", this.client)
       }
       catch(e){
         api.alert(`Failed to connect to the backend server, error: ${e}`)
@@ -137,16 +142,31 @@ const app = new Vue({
     },
 
     logout(){
+      this.client.logout()
       this.client = null
-      $("#logout-but").hide()
-      $("#avatar-img").hide()
       $("#eval-cam").hide()
+      $("#authen-layout").hide()
+      $("#disclaimer-layout").show()
     },
 
-    accessPublic(){
-      $("#desclaimer-layout").hide()
+    goToPublic(){
+      $("#disclaimer-layout").hide()
       $("#public-layout").show()
-      $("#authen-layout").hide()
+    },
+
+    goBackDisclaimer(){
+      $("#public-layout").hide()
+      $("#disclaimer-layout").show()
+    },
+
+    goToAuthen(){
+      $("#disclaimer-layout").hide()
+      $("#authen-layout").show()
+      // $("#vis").show()
+    },
+
+    view3D(){
+      window.open("https://kitware.github.io/itk-vtk-viewer/app/?fileToLoad=https://data.kitware.com/api/v1/file/564a65d58d777f7522dbfb61/download/data.nrrd", "_blank")
     }
   }
 })
@@ -166,22 +186,30 @@ api.export(new ImJoyPlugin())
 
 <window lang="html">
 <div id="app">
-  <div class="header" style="bacground-color:red;">
-    <a class="logo" href="https://research.pasteur.fr/en/team/imaging-and-modeling/" target="_blank">Imaging and Modeling Unit</a>
-    <div class="header-right">
-      <div class="dropdown-item container-login100-form-btn">
-        <button class="login100-form-btn" v-if="!client || !client.accessToken" @click="login()">
-            Login
-        </button>
-        <button id="logout-but" class="login100-form-btn" style="display:none" @click="logout()">
-            Logout
-        </button>
-        <div id="avatar-img" style="display:none"></div>
+  <nav class="navbar navbar-inverse">
+    <div class="container-fluid">
+      <div class="navbar-header">
+        <a class="navbar-brand" href="https://research.pasteur.fr/en/team/imaging-and-modeling/" target="_blank">Imaging and Modeling</a>
       </div>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+          <button class="login100-form-btn" v-if="!client || !client.accessToken" @click="login()">
+              Login
+          </button>
+        </li>
+        <li>
+          <button id="logout-but" class="login100-form-btn" v-if="client" @click="logout()">
+              Logout
+          </button>
+        </li>
+        <li>
+          <div id="avatar-img" v-if="client"></div>
+        </li>
+      </ul>
     </div>
-  </div>
+  </nav>
 
-  <div id="desclaimer-layout" class="container-login100" style="background-image: url('https://github.com/nguyenhoa93/deepcoronascan-imjoy/raw/master/images/login-background.jpg');">
+  <div id="disclaimer-layout" class="container-login100" style="background-image: url('https://github.com/nguyenhoa93/deepcoronascan-imjoy/raw/master/images/login-background.jpg');">
     <div class="wrap-login100">
       <span class="login100-form-logo">
         <i class="fas fa-lungs-virus" aria-hidden="true"></i>
@@ -204,23 +232,39 @@ api.export(new ImJoyPlugin())
       </div>
 
       <div class="container-login100-form-btn">
-        <button class="login100-form-btn" @click="login()">
-            Demo
+        <button class="login100-form-btn" @click="goToPublic()">
+            <i class="far fa-play-circle" aria-hidden="true"> Live Demo</i>
         </button>
-        <button id="eval-cam" class="login100-form-btn" style="display:none">
+        <button id="eval-cam" v-if="client" class="login100-form-btn" style="display:none" @click="goToAuthen()">
             GradCAM Evaluation
         </button>
       </div>     
     </div>
   </div>
-  
+
   <div id="authen-layout" v-if="client" style="display:none">
-    <h1> Login success </h1>
+    <h1><center>GradCAM Evaluation</center></h1>
+    <div class="login100-form-btn">
+      <button id="view-3d" class="login100-form-btn" @click="view3D()">
+         <i class="fas fa-cube" aria-hidden="true"> View 3D</i>
+      </button>
+    </div>
   </div>
 
+  <!-- <div
+    id="vis"
+    style="float: center; display: inline-block; border: 2px solid gray; margin: 20px; margin-right: 20px;display:none;"
+    class="itk-vtk-viewer"
+    data-url="https://data.kitware.com/api/v1/file/564a65d58d777f7522dbfb61/download/data.nrrd"
+    data-viewport="450x300"
+  ></div> -->
+
   <div id="public-layout" style="display:none">
+    <hr>
     <h1>Update soon</h1>
-    <i class="fas fa-user-secret" aria-hidden="true" style='font-size:30px'></i>
+    <button @click="goBackDisclaimer()">
+      <i class="fas fa-backward" aria-hidden="true" style='font-size:30px'></i>
+    </button>
   </div>
 
   <div class="wrapper-footer">
