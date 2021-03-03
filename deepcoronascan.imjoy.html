@@ -37,7 +37,7 @@
 </config>
 
 <script lang="javascript">
-
+const LOGOUT_URL = "https://imjoy.io/lite?plugin=https://github.com/nguyenhoa93/deepcoronascan-imjoy/blob/master/deepcoronascan.imjoy.html"
 class Client {
   constructor(baseURL){
     this.baseURL = baseURL
@@ -95,7 +95,8 @@ class Client {
       api.showMessage("You haven't logged in.")
       return;
     }
-    await this.auth0.logout({returnTo: window.location.origin});
+    console.log("Logout url: ", window.location.origin)
+    await this.auth0.logout({returnTo: LOGOUT_URL});
   }
   async get(url){
     return this.makeRequest(url, 'GET')
