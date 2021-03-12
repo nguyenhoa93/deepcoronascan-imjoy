@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Online demo">
+    <link rel="icon" href="images/favicon.ico">
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" crossorigin="anonymous">
+    <!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous"> -->
+    <!--link href="assets/css/bootstrap-player.css" rel="stylesheet"-->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css" rel="stylesheet">
+
+    <link href="css/main.css" rel="stylesheet">
+    <link href="css/util.css" rel="stylesheet">
+    
+  </head>
+  <div id="app">
+    <nav class="navbar navbar-inverse">
+      <div class="container-fluid">
+        <div class="navbar-header">
+          <a class="navbar-brand" href="https://research.pasteur.fr/en/team/imaging-and-modeling/" target="_blank">Imaging and Modeling</a>
+        </div>
+        <ul class="nav navbar-nav navbar-right">
+          <li>
+            <button class="login100-form-btn" v-if="!client || !client.accessToken" @click="login()">
+                Login
+            </button>
+          </li>
+          <li>
+            <button id="logout-but" class="login100-form-btn" @click="logout()" style="display:none;">
+                Logout
+            </button>
+          </li>
+          <li>
+            <div id="avatar-img" style="display:none;"></div>
+          </li>
+        </ul>
+      </div>
+    </nav>
+  
+    <div id="disclaimer-layout" class="container-login100" style="background-image: url('https://github.com/nguyenhoa93/deepcoronascan-imjoy/raw/master/images/login-background.jpg');">
+      <div class="wrap-login100">
+        <span class="login100-form-logo">
+          <i class="fas fa-lungs-virus" aria-hidden="true"></i>
+        </span>
+  
+        <span class="login100-form-title p-b-34 p-t-27">
+            DeepCoronaScan
+        </span>
+  
+         <div class="text-center p-t-10 p-b-30">
+           <hr>
+          <font size="+1" color="#B03A2E">
+            <b><i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
+            DISCLAIMER: This tool is only used for research purpose, NOT ready for medical diagnosis.</b>
+          </font>
+          <br>
+          <hr>
+          <br>
+          By clicking the following button(s), I confirm to have understood the disclaimer.
+        </div>
+  
+        <div class="container-login100-form-btn">
+          <button class="login100-form-btn" @click="goToPublic()">
+              <i class="far fa-play-circle" aria-hidden="true"> Live Demo</i>
+          </button>
+          <button id="eval-cam" v-if="client" class="login100-form-btn" style="display:none" @click="goToAuthen()">
+              GradCAM Evaluation
+          </button>
+        </div>     
+      </div>
+    </div>
+  
+    <div id="authen-layout" style="display:none">
+      <h1><center>GradCAM Evaluation</center></h1>
+      <!-- <div
+        id="vis"
+        style="float: center; display: inline-block; border: 2px solid gray; margin: 20px; margin-right: 20px;"
+        class="itk-vtk-viewer"
+        data-url="https://data.kitware.com/api/v1/file/564a65d58d777f7522dbfb61/download/data.nrrd"
+        data-viewport="800x500"
+      ></div> -->
+      <div class="wrap-login100">
+        <div class="login100-form-btn">
+          <button id="view-3d" class="login100-form-btn" @click="view3D()">
+            <i class="fas fa-cube" aria-hidden="true"> View 3D</i>
+          </button>
+        </div>
+      </div>
+    </div>
+  
+    <div id="public-layout" style="display:none">
+      <hr>
+      <h1>Update soon</h1>
+      <button @click="goBackDisclaimer()">
+        <i class="fas fa-backward" aria-hidden="true" style='font-size:30px'></i>
+      </button>
+    </div>
+  
+    <div class="wrapper-footer">
+      <div class="container">
+        <footer class="footer">
+          <a href="https://sites.google.com/site/imagingandmodeling/" target="_blank">
+            <i class="svg-icon googleplus"></i>
+          </a>
+          <a href="https://twitter.com/ImodLab" target="_blank">
+            <i class="svg-icon twitter"></i>
+          </a>
+          <a href="https://github.com/imodpasteur" target="_blank">
+            <i class="svg-icon github"></i>
+          </a>
+        </footer>
+      </div>
+    </div>
+  </div>
+  <body>
+    
+    <!-- ================================================== -->
+    <!-- ================================================== -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.2/axios.min.js"></script>
+    <script src="https://kitware.github.io/itk-vtk-viewer/app/itkVtkViewerCDN.js"></script>
+    <script src="https://cdn.auth0.com/js/auth0-spa-js/1.13.6/auth0-spa-js.production.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>
