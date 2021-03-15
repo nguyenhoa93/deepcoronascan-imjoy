@@ -158,9 +158,7 @@ class FileReferenceStore {
   }
 
   static async fromUrl(url, targetUrl) {
-    console.log("Start")
     const ref = await fetch(url).then(res => res.json());
-    console.log(ref)
     return new FileReferenceStore(ref, targetUrl);
   }
 }
@@ -172,9 +170,10 @@ const app = new Vue({
     tasks: null,
     baseUrl: 'https://ai.pasteur.fr',
     isAuthenticated: false,
-    samples: null,
+    samples: [],
     selectedSample: null,
-    sample: null
+    sample: null,
+    camCheck: null
   },
   methods: {
     async login(){
@@ -191,8 +190,23 @@ const app = new Vue({
           if ("deepcoronascan" in this.tasks) {
             $("#eval-cam").show()
           }
-          this.samples = await this.client.get(`${this.baseUrl}/task/deepcoronascan/all`)
+          const all_samples = await this.client.get(`${this.baseUrl}/task/deepcoronascan/all`)
+          for (const [key, sample_name] of Object.entries(all_samples)) {
+            var sample_info = {}
+            console.log(sample_name)
+            sample_info["name"] = sample_name
+            var sample = await this.client.get(`${this.baseUrl}/task/deepcoronascan/sample/${sample_name}`)
+            var label = await fetch(sample.placeholder_files["annotation.json"]).then(res => res.json());
+            if (label["result"] == "no"){
+              sample_info["label"] = "#E30715"
+            } else if (label["result"] == "yes"){
+              sample_info["label"] = "#4CAF4F"
+            }
+            this.samples.push(sample_info)
+          }
           console.log("Samples: ", this.samples)
+          const sample1 = await this.client.get(`${this.baseUrl}/task/deepcoronascan/sample/dnasample1`)
+          console.log("dnasample1", sample1)
         }
       }
       catch(e){
@@ -224,22 +238,31 @@ const app = new Vue({
     goToAuthen(){
       $("#disclaimer-layout").hide()
       $("#authen-layout").show()
+
     },
 
     async showCAM(selectedSample){
       this.selectedSample = selectedSample
       console.log(this.selectedSample)
-      $("#gradcam-form").show()
       this.sample = await this.client.get(`${this.baseUrl}/task/deepcoronascan/sample/${this.selectedSample}`)
-      console.log(this.sample.input_files)
+      this.camCheck = await fetch(this.sample.placeholder_files["annotation.json"]).then(res => res.json());
+      this.camCheck = this.camCheck["result"]
+      console.log(this.camCheck)
+      $("#gradcam-form").show()
       const refUrl = this.sample.input_files["image.ome.tif_offsets.json"]
       const targetUrl = this.sample.input_files["image.ome.tif"]
       const store = await FileReferenceStore.fromUrl(refUrl, targetUrl)
-      console.log("Store", store)
       const viewer = await api.showDialog({src: 'https://hms-dbmi.github.io/vizarr'})
       console.log("Show dialog")
-      const img = { "source": store, "name": "Demo Image"}
+      const img = { "source": store, "name": this.selectedSample}
       viewer.add_image(img)
+    },
+
+    async saveCamEval(){
+      console.log(this.camCheck)
+      const file = new File([JSON.stringify({"result": this.camCheck})], "annotation.json", {type:"application/json"})
+      const url = this.sample.placeholder_files["annotation.json"]
+      await this.client.put(url, file)
     }
   }
 })
@@ -322,29 +345,18 @@ api.export(new ImJoyPlugin())
       <h3 style="text-align:center;">Choose a CT scan</h3>
       <hr style="color:#f1f1f1;">
       <ul id="scan-list">
-        <li v-for="(sample_name,index) in samples" :key="index" @click="showCAM(sample_name)"/>{{ sample_name }}
-        <li>Link 1</li>
-        <li>Link 2</li>
-        <li>Link 3</li>
-        <li>Link 4</li>
-        <li>Link 5</li>
-        <li>Link 6</li> 
-        <li>Link 7</li> 
-        <li>Link 8</li>
-        <li>Link 9</li>
-        <li>Link 10</li>
-        <li>Link 11</li>
-        <li>Link 13</li>
-        <li>Link 13</li>
+        <li v-for="sample in samples" :key="sample.name" :style="{background: sample.label}" @click="showCAM(sample.name)">
+          {{ sample.name }}
+        </li>
       </ul>
 
       <hr style="border: 3px double #487;">
       <form style="display:none;" id="gradcam-form">
         Is GradCAM of <span id="sample-name">{{ selectedSample }}</span> reasonable?<br>
-        <input type="radio" name="label" id="yes"> Yes<br>
-        <input type="radio" name="label" id="no"> No<br>
+        <input type="radio" name="label" value="yes" :checked="camCheck == 'yes'" v-model="camCheck"> Yes<br>
+        <input type="radio" name="label" value="no" :checked="camCheck == 'no'" v-model="camCheck"> No<br>
         <button>
-            <i class="fas fa-save" aria-hidden="true"> Save</i>
+            <i class="fas fa-save" aria-hidden="true" @click="saveCamEval()"> Save</i>
         </button>
       </form>
     </div> 
