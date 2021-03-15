@@ -195,7 +195,7 @@ const app = new Vue({
             var sample_info = {}
             console.log(sample_name)
             sample_info["name"] = sample_name
-            var sample = await this.client.get(`${this.baseUrl}/task/deepcoronascan/sample/${sample_name}`)
+            var sample = await this.client.get(`${this.baseUrl}/task/deepcoronascan/sample/${sample_name}/update`);
             var label = await fetch(sample.placeholder_files["annotation.json"]).then(res => res.json());
             if (label["result"] == "no"){
               sample_info["label"] = "#E30715"
@@ -236,7 +236,6 @@ const app = new Vue({
     goToAuthen(){
       $("#disclaimer-layout").hide()
       $("#authen-layout").show()
-
     },
 
     async showCAM(selectedSample){
@@ -257,11 +256,27 @@ const app = new Vue({
     },
 
     async saveCamEval(){
-      console.log(this.camCheck)
-      const file = new File([JSON.stringify({"result": this.camCheck})], "annotation.json", {type:"application/json"})
-      console.log("File: ", file)
-      const url = this.sample.target_files["annotation.json"]
-      await this.client.put(url, file)
+      try{
+        const sample = this.sample
+        const url = sample.target_files["annotation.json"]
+        const options = {
+          onUploadProgress: (progressEvent) => {
+            const progress = Math.round(1.0 * progressEvent.loaded / file.size * 100.0)
+            api.showMessage("uploading annotation, size: "+Math.round(file.size/1000000)+"MB, " + progress + "% uploaded.");
+          }
+        };
+        const file = new File([JSON.stringify({"result": this.camCheck})], "annotation.json", {type:"application/json"})
+        await axios.put(url, file, options)
+      } catch(e) {
+        api.alert(`Failed to save annotation, error: ${e}`)
+      }
+      
+      if (this.camCheck == "yes") {
+        this.samples.find(x => x.name == this.selectedSample).label = "#4CAF4F"
+      } else if (this.camCheck == "yes") {
+        this.samples.find(x => x.name == this.selectedSample).label = "#E30715"
+      }
+      console.log(this.samples)
     }
   }
 })
@@ -354,8 +369,8 @@ api.export(new ImJoyPlugin())
         Is GradCAM of <span id="sample-name">{{ selectedSample }}</span> reasonable?<br>
         <input type="radio" name="label" value="yes" :checked="camCheck == 'yes'" v-model="camCheck"> Yes<br>
         <input type="radio" name="label" value="no" :checked="camCheck == 'no'" v-model="camCheck"> No<br>
-        <button>
-            <i class="fas fa-save" aria-hidden="true" @click="saveCamEval()"> Save</i>
+        <button id="saveCAM" v-on:click="saveCamEval" class="login100-form-btn">
+            <i class="fas fa-save" aria-hidden="true"> Save</i>
         </button>
       </form>
     </div> 
