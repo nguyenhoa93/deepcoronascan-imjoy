@@ -205,8 +205,6 @@ const app = new Vue({
             this.samples.push(sample_info)
           }
           console.log("Samples: ", this.samples)
-          const sample1 = await this.client.get(`${this.baseUrl}/task/deepcoronascan/sample/dnasample1`)
-          console.log("dnasample1", sample1)
         }
       }
       catch(e){
@@ -244,7 +242,8 @@ const app = new Vue({
     async showCAM(selectedSample){
       this.selectedSample = selectedSample
       console.log(this.selectedSample)
-      this.sample = await this.client.get(`${this.baseUrl}/task/deepcoronascan/sample/${this.selectedSample}`)
+      this.sample = await this.client.get(`${this.baseUrl}/task/deepcoronascan/sample/${this.selectedSample}/update`)
+      console.log("Sample: ", this.sample)
       this.camCheck = await fetch(this.sample.placeholder_files["annotation.json"]).then(res => res.json());
       this.camCheck = this.camCheck["result"]
       console.log(this.camCheck)
@@ -253,7 +252,6 @@ const app = new Vue({
       const targetUrl = this.sample.input_files["image.ome.tif"]
       const store = await FileReferenceStore.fromUrl(refUrl, targetUrl)
       const viewer = await api.showDialog({src: 'https://hms-dbmi.github.io/vizarr'})
-      console.log("Show dialog")
       const img = { "source": store, "name": this.selectedSample}
       viewer.add_image(img)
     },
@@ -261,7 +259,8 @@ const app = new Vue({
     async saveCamEval(){
       console.log(this.camCheck)
       const file = new File([JSON.stringify({"result": this.camCheck})], "annotation.json", {type:"application/json"})
-      const url = this.sample.placeholder_files["annotation.json"]
+      console.log("File: ", file)
+      const url = this.sample.target_files["annotation.json"]
       await this.client.put(url, file)
     }
   }
