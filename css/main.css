@@ -582,19 +582,51 @@ footer {
 }
 
 /* Create two columns/boxes that floats next to each other */
-sidebar {
+.sidenav {
   float: left;
   width: 30%;
-  background: #666666;
+  background: #222222;
   padding: 20px;
 }
 
-sidebar ul {
-  list-style-type: none;
-  padding: 0;
+.sidenav button {
+  background-color: #2193b0;
+  border: none;
+  color: white;
+  padding: 15px 32px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
 }
 
-article {
+.sidenav ul li {
+  padding: 6px 8px 6px 16px;
+  text-decoration: none;
+  font-size: 20px;
+  color: #818181;
+  display: block;
+}
+
+.sidenav ul li:hover {
+  color: #f1f1f1;
+}
+
+.sidenav form {
+  font-size: 20px;
+  color: #f1f1f1;
+}
+
+.sidenav h3 {
+  color: #f1f1f1;
+}
+
+.sidenav ul{height:300px; width:90%;}
+.sidenav ul{overflow:hidden; overflow-y:scroll;}
+
+.main {
   float: left;
   padding: 20px;
   width: 70%;
@@ -610,9 +642,10 @@ section::after {
 
 /* Responsive layout - makes the two columns/boxes stack on top of each other instead of next to each other, on small screens */
 @media (max-width: 600px) {
-  sidebar, article {
+  sidenav, main {
     width: 100%;
     height: auto;
   }
+}
 }
 

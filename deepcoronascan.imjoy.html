@@ -29,10 +29,10 @@
   "https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.2/axios.min.js",
   "https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js",
   "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css",
-  "https://kitware.github.io/itk-vtk-viewer/app/itkVtkViewerCDN.js"
+  "https://unpkg.com/zarr@0.4.0/zarr.umd.js"
   ],
   "dependencies": [],
-  "defaults": {"w": 40, "h": 10}
+  "defaults": {"fullscreen": true}
   }
 </config>
 
@@ -75,7 +75,6 @@ class Client {
     await auth0.loginWithPopup({audience: 'https://imjoy.eu.auth0.com/api/v2/'});
     //logged in. you can get the user profile like this:
     const user = await auth0.getUser({audience: 'https://imjoy.eu.auth0.com/api/v2/'});
-    // const user = await auth0.getUser();
     this.isAdmin = false;
     if(user){
       if(!user.email_verified){
@@ -95,7 +94,6 @@ class Client {
       api.showMessage("You haven't logged in.")
       return;
     }
-    console.log("Logout url: ", window.location.origin)
     await this.auth0.logout({returnTo: LOGOUT_URL});
   }
   async get(url){
@@ -112,26 +110,89 @@ class Client {
   }
 }
 
+class FileReferenceStore {
+  constructor(ref, target) {
+    this.ref = ref;
+    this.target = target;
+  }
+
+  _url(urlPath) {
+    if(!urlPath){
+      return this.target
+    }
+    const [protocol, path] = urlPath.split('://');
+    if (protocol === 'https' || protocol === 'http') {
+      return urlPath;
+    }
+    if (protocol === 'gc') {
+      return 'https://storage.googleapis.com/' + path;
+    }
+    throw Error("Protocol not supported, got: " + JSON.stringify(protocol));
+  }
+
+  async getItem(key) {
+    const res = this.ref[key];
+    if (!res) {
+      // Key not in store
+      throw new zarr.KeyError(key);
+    }
+   
+    if (res?.length !== 3) {
+      // JSON data entry in reference 
+      const meta = typeof res === 'string' ? res : JSON.stringify(res)
+      const enc = new TextEncoder().encode(meta);
+      return enc.buffer;
+    }
+
+    const [urlPath, offset, size] = res;
+    const url = this._url(urlPath);
+    const headers = {
+      Range: `bytes=${offset}-${offset + size - 1}`
+    };
+    const value = await fetch(url, { headers }).then(res => res.arrayBuffer());
+    return value;
+  }
+
+  containsItem(key) {
+    return key in this.ref;
+  }
+
+  static async fromUrl(url, targetUrl) {
+    console.log("Start")
+    const ref = await fetch(url).then(res => res.json());
+    console.log(ref)
+    return new FileReferenceStore(ref, targetUrl);
+  }
+}
+
 const app = new Vue({
   el: '#app',
   data: {
     client: null,
     tasks: null,
-    baseUrl: 'https://ai.pasteur.fr'
+    baseUrl: 'https://ai.pasteur.fr',
+    isAuthenticated: false,
+    samples: null,
+    selectedSample: null,
+    sample: null
   },
   methods: {
     async login(){
-      this.$vs.loading()
+      // this.$vs.loading()
       try{
         this.client = new Client(this.baseUrl)
         this.tasks = await this.client.get(`${this.baseUrl}/tasks`)
         console.log("Client: ", this.client)
         console.log("Tasks: ", this.tasks)
-        if (this.client.user != "undefined") {
-          // $("#logout-but").show()
-          // $("#avatar-img").show()
+        if (this.client.accessToken) {
+          $("#logout-but").show()
+          $("#avatar-img").show()
           $("#avatar-img").text(this.client.userInfo.name.charAt(0))
-          $("#eval-cam").show()
+          if ("deepcoronascan" in this.tasks) {
+            $("#eval-cam").show()
+          }
+          this.samples = await this.client.get(`${this.baseUrl}/task/deepcoronascan/all`)
+          console.log("Samples: ", this.samples)
         }
       }
       catch(e){
@@ -163,11 +224,22 @@ const app = new Vue({
     goToAuthen(){
       $("#disclaimer-layout").hide()
       $("#authen-layout").show()
-      // $("#vis").show()
     },
 
-    view3D(){
-      window.open("https://kitware.github.io/itk-vtk-viewer/app/?fileToLoad=https://data.kitware.com/api/v1/file/564a65d58d777f7522dbfb61/download/data.nrrd", "_blank")
+    async showCAM(selectedSample){
+      this.selectedSample = selectedSample
+      console.log(this.selectedSample)
+      $("#gradcam-form").show()
+      this.sample = await this.client.get(`${this.baseUrl}/task/deepcoronascan/sample/${this.selectedSample}`)
+      console.log(this.sample.input_files)
+      const refUrl = this.sample.input_files["image.ome.tif_offsets.json"]
+      const targetUrl = this.sample.input_files["image.ome.tif"]
+      const store = await FileReferenceStore.fromUrl(refUrl, targetUrl)
+      console.log("Store", store)
+      const viewer = await api.showDialog({src: 'https://hms-dbmi.github.io/vizarr'})
+      console.log("Show dialog")
+      const img = { "source": store, "name": "Demo Image"}
+      viewer.add_image(img)
     }
   }
 })
@@ -199,12 +271,12 @@ api.export(new ImJoyPlugin())
           </button>
         </li>
         <li>
-          <button id="logout-but" class="login100-form-btn" v-if="client" @click="logout()">
+          <button id="logout-but" class="login100-form-btn" @click="logout()" style="display:none;">
               Logout
           </button>
         </li>
         <li>
-          <div id="avatar-img" v-if="client"></div>
+          <div id="avatar-img" style="display:none;"></div>
         </li>
       </ul>
     </div>
@@ -243,22 +315,48 @@ api.export(new ImJoyPlugin())
     </div>
   </div>
 
-  <div id="authen-layout" v-if="client" style="display:none">
+  <div id="authen-layout" style="display:none">
     <h1><center>GradCAM Evaluation</center></h1>
-    <div class="login100-form-btn">
-      <button id="view-3d" class="login100-form-btn" @click="view3D()">
-         <i class="fas fa-cube" aria-hidden="true"> View 3D</i>
-      </button>
+    <div class="sidenav">
+      <hr style="color:#f1f1f1;">
+      <h3 style="text-align:center;">Choose a CT scan</h3>
+      <hr style="color:#f1f1f1;">
+      <ul id="scan-list">
+        <li v-for="(sample_name,index) in samples" :key="index" @click="showCAM(sample_name)"/>{{ sample_name }}
+        <li>Link 1</li>
+        <li>Link 2</li>
+        <li>Link 3</li>
+        <li>Link 4</li>
+        <li>Link 5</li>
+        <li>Link 6</li> 
+        <li>Link 7</li> 
+        <li>Link 8</li>
+        <li>Link 9</li>
+        <li>Link 10</li>
+        <li>Link 11</li>
+        <li>Link 13</li>
+        <li>Link 13</li>
+      </ul>
+
+      <hr style="border: 3px double #487;">
+      <form style="display:none;" id="gradcam-form">
+        Is GradCAM of <span id="sample-name">{{ selectedSample }}</span> reasonable?<br>
+        <input type="radio" name="label" id="yes"> Yes<br>
+        <input type="radio" name="label" id="no"> No<br>
+        <button>
+            <i class="fas fa-save" aria-hidden="true"> Save</i>
+        </button>
+      </form>
+    </div> 
+    <div class="main" id="scan">
+      <iframe id="placeholder"
+        title="placeholder"
+        width="100%"
+        height="600px"
+        src="https://ourworldindata.org/grapher/total-cases-covid-19?tab=map">
+      </iframe>
     </div>
   </div>
-
-  <!-- <div
-    id="vis"
-    style="float: center; display: inline-block; border: 2px solid gray; margin: 20px; margin-right: 20px;display:none;"
-    class="itk-vtk-viewer"
-    data-url="https://data.kitware.com/api/v1/file/564a65d58d777f7522dbfb61/download/data.nrrd"
-    data-viewport="450x300"
-  ></div> -->
 
   <div id="public-layout" style="display:none">
     <hr>
