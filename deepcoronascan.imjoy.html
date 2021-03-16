@@ -277,6 +277,7 @@ const app = new Vue({
         this.samples.find(x => x.name == this.selectedSample).label = "#E30715"
       }
       console.log(this.samples)
+      $("#app").show()
     }
   }
 })
@@ -369,7 +370,7 @@ api.export(new ImJoyPlugin())
         Is GradCAM of <span id="sample-name">{{ selectedSample }}</span> reasonable?<br>
         <input type="radio" name="label" value="yes" :checked="camCheck == 'yes'" v-model="camCheck"> Yes<br>
         <input type="radio" name="label" value="no" :checked="camCheck == 'no'" v-model="camCheck"> No<br>
-        <button id="saveCAM" v-on:click="saveCamEval" class="login100-form-btn">
+        <button id="saveCAM" v-on:click="saveCamEval">
             <i class="fas fa-save" aria-hidden="true"> Save</i>
         </button>
       </form>
