@@ -178,6 +178,8 @@
       camTP: null,
       camFP: null,
       stats: {"nolabel": 0, "yes_yes": 0, "yes_no": 0, "no_yes": 0, "no_no": 0},
+      colorCodes: ["#2ECC71", "#2874A6", "#B7950B", "#E30715"],
+      experiments: null,
       camUrl: "https://hms-dbmi.github.io/vizarr/?source=https://s3.embassy.ebi.ac.uk/idr/zarr/v0.1/4495402.zarr"
     },
     methods: {
@@ -195,22 +197,34 @@
               $("#eval-cam").show()
             }
             const all_samples = await this.client.get(`${this.baseUrl}/task/deepcoronascan/all`)
+            console.log("All samples: ", all_samples)
             for (const [key, sample_name] of Object.entries(all_samples)) {
               var sample_info = {}
               sample_info["name"] = sample_name
               const sample = await this.client.get(`${this.baseUrl}/task/deepcoronascan/sample/${sample_name}/update`);
               const label = await fetch(sample.placeholder_files["annotation.json"]).then(res => res.json());
-              if (label["result"] == "no"){
-                sample_info["label"] = "#E30715"
-                this.stats["no_no"] += 1
-              } else if (label["result"] == "yes"){
-                sample_info["label"] = "#4CAF4F"
-                this.stats["yes_no"] += 1
+              if (label["TP"] == "no"){
+                if (label["FP"]=="no"){
+                  sample_info["label"] = this.colorCodes[2]
+                  this.stats["no_no"] += 1
+                } else {
+                  sample_info["label"] = this.colorCodes[3]
+                  this.stats["no_yes"] += 1
+                }
+              } else if (label["TP"] == "yes"){
+                if (label["FP"]=="no"){
+                  sample_info["label"] = this.colorCodes[0]
+                  this.stats["yes_no"] += 1
+                } else {
+                  sample_info["label"] = this.colorCodes[1]
+                  this.stats["yes_yes"] += 1
+                }
               } else {
                 this.stats["nolabel"] += 1
               }
               this.samples.push(sample_info)
             }
+            console.log("Statistics: ", this.stats)
           }
         }
         catch(e){
@@ -249,7 +263,8 @@
         console.log(this.selectedSample)
         this.sample = await this.client.get(`${this.baseUrl}/task/deepcoronascan/sample/${this.selectedSample}/update`)
         this.camCheck = await fetch(this.sample.placeholder_files["annotation.json"]).then(res => res.json());
-        this.camTP = this.camCheck["result"]
+        this.camTP = this.camCheck["TP"]
+        this.camFP = this.camCheck["FP"]
         console.log(this.camTP)
         $("#sample-name").show()
         $("#gradcam-tp").show()
@@ -273,21 +288,26 @@
               api.showMessage("uploading annotation, size: "+Math.round(file.size/1000000)+"MB, " + progress + "% uploaded.");
             }
           };
-          const file = new File([JSON.stringify({"result": this.camTP})], "annotation.json", {type:"application/json"})
+          const file = new File([JSON.stringify({"TP": this.camTP, "FP": this.camFP})], "annotation.json", {type:"application/json"})
           await axios.put(url, file, options)
         } catch(e) {
           api.alert(`Failed to save annotation, error: ${e}`)
         }
         
         if (this.camTP == "yes") {
-          this.samples.find(x => x.name == this.selectedSample).label = "#4CAF4F"
+          if (this.camFP == "no") {
+            this.samples.find(x => x.name == this.selectedSample).label = this.colorCodes[0]
+          } else {
+            this.samples.find(x => x.name == this.selectedSample).label = this.colorCodes[1]
+          }
         } else if (this.camTP == "no") {
-          this.samples.find(x => x.name == this.selectedSample).label = "#E30715"
+          if (this.camFP == "no") {
+            this.samples.find(x => x.name == this.selectedSample).label = this.colorCodes[2]
+          } else {
+            this.samples.find(x => x.name == this.selectedSample).label = this.colorCodes[3]
+          }
         }
       }
-  
-      // Draw the chart and set the chart values
-      
     }
   })
   
@@ -391,7 +411,7 @@
         </button>
       </div> 
       <div class="main" id="statistics">
-        <div id="piechart"></div>
+        <div id="annstats"></div>
         <!-- <iframe id="gradcam"
           title="GradCAM"
           width="100%"
