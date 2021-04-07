@@ -199,30 +199,41 @@
             const all_samples = await this.client.get(`${this.baseUrl}/task/deepcoronascan/all`)
             console.log("All samples: ", all_samples)
             for (const [key, sample_name] of Object.entries(all_samples)) {
-              var sample_info = {}
-              sample_info["name"] = sample_name
               const sample = await this.client.get(`${this.baseUrl}/task/deepcoronascan/sample/${sample_name}/update`);
-              const label = await fetch(sample.placeholder_files["annotation.json"]).then(res => res.json());
-              if (label["TP"] == "no"){
-                if (label["FP"]=="no"){
-                  sample_info["label"] = this.colorCodes[2]
-                  this.stats["no_no"] += 1
+              // Experiment statistics
+              if (sample_name == "stats") {
+                this.experiments = await fetch(sample.input_files["image.ome.tif_offsets.json"]).then(res => res.json());
+                console.log(this.experiments)
+              } else { // samples
+                var sample_info = {}
+                sample_info["name"] = sample_name
+                if (jQuery.isEmptyObject(sample.placeholder_files)) {
+                  var label = {"TP": null, "FP": null};
                 } else {
-                  sample_info["label"] = this.colorCodes[3]
-                  this.stats["no_yes"] += 1
+                  const label = await fetch(sample.placeholder_files["annotation.json"]).then(res => res.json());
                 }
-              } else if (label["TP"] == "yes"){
-                if (label["FP"]=="no"){
-                  sample_info["label"] = this.colorCodes[0]
-                  this.stats["yes_no"] += 1
+                
+                if (label["TP"] == "no"){
+                  if (label["FP"]=="no"){
+                    sample_info["label"] = this.colorCodes[2]
+                    this.stats["no_no"] += 1
+                  } else {
+                    sample_info["label"] = this.colorCodes[3]
+                    this.stats["no_yes"] += 1
+                  }
+                } else if (label["TP"] == "yes"){
+                  if (label["FP"]=="no"){
+                    sample_info["label"] = this.colorCodes[0]
+                    this.stats["yes_no"] += 1
+                  } else {
+                    sample_info["label"] = this.colorCodes[1]
+                    this.stats["yes_yes"] += 1
+                  }
                 } else {
-                  sample_info["label"] = this.colorCodes[1]
-                  this.stats["yes_yes"] += 1
+                  this.stats["nolabel"] += 1
                 }
-              } else {
-                this.stats["nolabel"] += 1
+                this.samples.push(sample_info)
               }
-              this.samples.push(sample_info)
             }
             console.log("Statistics: ", this.stats)
           }
@@ -262,7 +273,13 @@
         this.selectedSample = selectedSample
         console.log(this.selectedSample)
         this.sample = await this.client.get(`${this.baseUrl}/task/deepcoronascan/sample/${this.selectedSample}/update`)
-        this.camCheck = await fetch(this.sample.placeholder_files["annotation.json"]).then(res => res.json());
+        console.log("Sample: ", this.sample)
+        if (jQuery.isEmptyObject(this.sample.placeholder_files)) {
+          this.camCheck = {"TP": null, "FP": null};
+        } else {
+          this.camCheck = await fetch(this.sample.placeholder_files["annotation.json"]).then(res => res.json());
+        }
+        
         this.camTP = this.camCheck["TP"]
         this.camFP = this.camCheck["FP"]
         console.log(this.camTP)
@@ -270,12 +287,31 @@
         $("#gradcam-tp").show()
         $("#gradcam-fp").show()
         $("#save-cam-btn").show()
+        const viewer = await api.showDialog({src: 'https://hms-dbmi.github.io/vizarr'})
+        // image
         const refUrl = this.sample.input_files["image.ome.tif_offsets.json"]
         const targetUrl = this.sample.input_files["image.ome.tif"]
-        const store = await FileReferenceStore.fromUrl(refUrl, targetUrl)
-        const viewer = await api.showDialog({src: 'https://hms-dbmi.github.io/vizarr'})
-        const img = { "source": store, "name": this.selectedSample, "opacity": 0.5}
+        const im_store = await FileReferenceStore.fromUrl(refUrl, targetUrl)
+  
+        const img = {
+          "source": im_store,
+          "name": this.selectedSample,
+          "axis_labels": ["z-axis", "Grayscale", "Green"]}
         viewer.add_image(img)
+  
+        // cam
+        const cam_refUrl = this.sample.input_files["cam.ome.tif_offsets.json"]
+        const cam_targetUrl = this.sample.input_files["cam.ome.tif"]
+        const cam_store = await FileReferenceStore.fromUrl(cam_refUrl, cam_targetUrl)
+        const cam = {
+          "source": cam_store,
+          "name": "GradCAM",
+          "channel_axis": 1,
+          "axis_labels": ["z-axis", "Red", "Green", "Blue"],
+          "names": ["Red", "Green", "Blue"],
+          "visibilities": [true, true, true]}
+        viewer.add_image(cam)
+        
       },
   
       async saveCamEval(){

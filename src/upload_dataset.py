@@ -22,17 +22,26 @@ assert (
     DATASET_ID in tasks
 ), f"Task {DATASET_ID} not found, must be one of: {list(tasks.keys())}"
 
-all_samples = os.listdir(DATASET_DIR)
+all_samples = [x for x in os.listdir(DATASET_DIR) if not x.startswith(".")]
+print("All: ", len(all_samples))
+with open("data/uploaded.txt", "r") as f:
+    uploaded = f.read().splitlines()
+print("Uploaded: ", len(uploaded))
+    
+all_samples = [x for x in all_samples if x not in uploaded]
+with open("data/uploaded.txt", "w") as f:
+    for item in uploaded + all_samples:
+        f.write("{}\n".format(item))
 # %% Upload stats
 print("Upload statistics")
-STATS_FILES = ["image.ome.tif", "cam.ome.tif", "annotations.json",
+STATS_FILES = ["image.ome.tif", "cam.ome.tif",
                "image.ome.tif_offsets.json", "cam.ome.tif_offsets.json"]
 sample_id = "stats"
 print(f"===> Uploading {sample_id} ...")
 response = requests.get(
     BASE_URL + f"/dataset/{DATASET_ID}/sample/{sample_id}/upload?exist_ok=1",
     headers={"Authorization": f"Bearer {TOKEN}"},
-    json=UPLOAD_FILES
+    json=STATS_FILES
 )
 response_obj = response.json()
 assert (
@@ -74,7 +83,7 @@ for file in response_obj["result"]["files"]:
     print(f"{file}: {url}")
     
 # %% Upload sample(s) to the task
-count = 0
+count = len(uploaded)
 for sample_id in all_samples:
     if not os.path.isdir(os.path.join(DATASET_DIR, sample_id)):
         continue
@@ -92,10 +101,11 @@ for sample_id in all_samples:
     result = response_obj["result"]
     # upload files
     for file_name in UPLOAD_FILES:
-        if file_name == "annotations":
+        if file_name == "annotation.json":
             input_file = os.path.join("src/annotation.json")
         else:
             input_file = os.path.join(DATASET_DIR, sample_id, file_name)
+            
         upload_url = result["files"][file_name]
 
         # read the file content here
@@ -112,7 +122,7 @@ for sample_id in all_samples:
         response = requests.post(
             BASE_URL + f"/dataset/{DATASET_ID}/sample/{sample_id}/convert",
             headers={"Authorization": f"Bearer {TOKEN}"},
-            json={input_file: {"format": "ome-tiff", "output_file": CONVERT_FILES[input_file]} for input_file in result["files"]}
+            json={input_file: {"format": "ome-tiff", "output_file": CONVERT_FILES[file_name]} for input_file in [file_name]}
         )
         response_obj = response.json()
         assert (
@@ -129,12 +139,11 @@ for sample_id in all_samples:
             assert (
                 response_obj.get("success") == True
             ), f"Failed to get conversion status, error: {response_obj.get('detail')}"
-            result = response_obj["result"]
-            print(result["status"])
-            if result['completed']:
+            convert_result = response_obj["result"]
+            print(convert_result["status"])
+            if convert_result['completed']:
                 break
-            time.sleep(1)
-            
+            time.sleep(1)      
             
     # now refresh this sample
     response = requests.post(

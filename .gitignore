@@ -1,3 +1,5 @@
 src/configs.py
 src/stats
 data
+*/__pycache__
+__pycache__
