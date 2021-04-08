@@ -30,7 +30,7 @@
     "https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js",
     "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css",
     "https://unpkg.com/zarr@0.4.0/zarr.umd.js",
-    "https://www.gstatic.com/charts/loader.js"
+    "https://cdn.plot.ly/plotly-latest.min.js"
     ],
     "dependencies": [],
     "defaults": {"fullscreen": true}
@@ -39,6 +39,16 @@
   
   <script lang="javascript">
   const LOGOUT_URL = "https://imjoy.io/lite?plugin=https://github.com/nguyenhoa93/deepcoronascan-imjoy/blob/master/deepcoronascan.imjoy.html"
+
+  function sum( obj ) {
+    var sum = 0;
+    for( var el in obj ) {
+      if( obj.hasOwnProperty( el ) ) {
+        sum += parseFloat( obj[el] );
+      }
+    }
+    return sum;
+  }
   
   class Client {
     constructor(baseURL){
@@ -178,7 +188,7 @@
       camTP: null,
       camFP: null,
       stats: {"nolabel": 0, "yes_yes": 0, "yes_no": 0, "no_yes": 0, "no_no": 0},
-      colorCodes: ["#2ECC71", "#2874A6", "#B7950B", "#E30715"],
+      colorCodes: ["#2ECC71", "#2874A6", "#B7950B", "#E30715", "#85929E"],
       experiments: null,
       camUrl: "https://hms-dbmi.github.io/vizarr/?source=https://s3.embassy.ebi.ac.uk/idr/zarr/v0.1/4495402.zarr"
     },
@@ -203,14 +213,155 @@
               // Experiment statistics
               if (sample_name == "stats") {
                 this.experiments = await fetch(sample.input_files["image.ome.tif_offsets.json"]).then(res => res.json());
-                console.log(this.experiments)
+                console.log("Experiments: ", this.experiments)
+                // CF
+                let sens = this.experiments["sensitivity"][this.experiments["sensitivity"].length-1]
+                let specs = this.experiments["specificity"][this.experiments["specificity"].length-1]
+                var xValues = ['POS', 'NEG'];
+
+                var yValues = ['Pred POS', 'Pred NEG'];
+
+                var zValues = [
+                  [sens, (1-specs).toFixed(2)],
+                  [(1-sens).toFixed(2), specs]
+                ];
+
+                var colorscaleValue = [
+                  [0, '#FFFFFF'],
+                  [1, '#001f3f']
+                ];
+
+                var data = [{
+                  x: xValues,
+                  y: yValues,
+                  z: zValues,
+                  type: 'heatmap',
+                  colorscale: colorscaleValue,
+                  showscale: true
+                }];
+
+                var layout = {
+                  title: 'Current confusion matrix',
+                  annotations: [],
+                  height: 400,
+                  width: 420,
+                  xaxis: {
+                    ticks: '',
+                    side: 'bottom'
+                  },
+                  yaxis: {
+                    ticks: '',
+                    ticksuffix: ' ',
+                    width: 700,
+                    height: 700,
+                    autosize: true
+                  }
+                };
+
+                for ( var i = 0; i < yValues.length; i++ ) {
+                  for ( var j = 0; j < xValues.length; j++ ) {
+                    var currentValue = zValues[i][j];
+                    if (currentValue > 0.5) {
+                      var textColor = 'white';
+                    }else{
+                      var textColor = 'black';
+                    }
+                    var result = {
+                      xref: 'x1',
+                      yref: 'y1',
+                      x: xValues[j],
+                      y: yValues[i],
+                      text: zValues[i][j],
+                      font: {
+                        family: 'Arial',
+                        size: 12,
+                        color: 'rgb(50, 171, 96)'
+                      },
+                      showarrow: false,
+                      font: {
+                        color: textColor
+                      }
+                    };
+                    layout.annotations.push(result);
+                  }
+                }
+
+                Plotly.newPlot('cf', data, layout);
+                // end CF
+
+                // Experiments chart
+                var start = 1
+                var end = this.experiments["sensitivity"].length
+                var experiment_names = []
+                while (start < end+1) {
+                  experiment_names.push("Exp" + start.toString())
+                  start++;
+                }
+                var trace1 = {
+                  x: experiment_names,
+                  y: this.experiments["sensitivity"],
+                  type: 'bar',
+                  name: 'Sensitivity',
+                  marker: {
+                    color: '#138D75',
+                    opacity: 0.7,
+                  }
+                };
+
+                var trace2 = {
+                  x: experiment_names,
+                  y: this.experiments["specificity"],
+                  type: 'bar',
+                  name: 'Specificity',
+                  marker: {
+                    color: '#BA4A00',
+                    opacity: 0.5
+                  }
+                };
+
+                var trace3 = {
+                  x: experiment_names,
+                  y: this.experiments["CHIPS-sensitivity"],
+                  type: 'bar',
+                  name: 'CHIPS-Sensitivity',
+                  marker: {
+                    color: 'rgb(49,130,189)',
+                    opacity: 0.7,
+                  }
+                };
+
+                var trace4 = {
+                  x: experiment_names,
+                  y: this.experiments["CHIPS-specificity"],
+                  type: 'bar',
+                  name: 'CHIPS-Specificity',
+                  marker: {
+                    color: '#F1C40F',
+                    opacity: 0.5
+                  }
+                };
+
+                var data = [trace1, trace2, trace3, trace4];
+
+                var layout = {
+                  title: 'Experiments',
+                  xaxis: {
+                    tickangle: -45
+                  },
+                  barmode: 'group'
+                };
+
+                Plotly.newPlot('experiments-chart', data, layout);
+
+                // End Experiments chart
+
               } else { // samples
                 var sample_info = {}
                 sample_info["name"] = sample_name
                 if (jQuery.isEmptyObject(sample.placeholder_files)) {
                   var label = {"TP": null, "FP": null};
                 } else {
-                  const label = await fetch(sample.placeholder_files["annotation.json"]).then(res => res.json());
+                  var label = await fetch(sample.placeholder_files["annotation.json"]).then(res => res.json());
                 }
                 
                 if (label["TP"] == "no"){
@@ -236,6 +387,37 @@
               }
             }
             console.log("Statistics: ", this.stats)
+            var data = [{
+              values: [this.stats["yes_no"], this.stats["yes_yes"], this.stats["no_no"], this.stats["no_yes"], this.stats["nolabel"]],
+              labels: ["Only TP", "TP+FP", "Neither TP nor FP", "Only FP", "Not annotated yet"],
+              marker: {
+                colors: this.colorCodes
+              },
+              domain: {column: 0},
+              name: 'GradCAM',
+              hole: .4,
+              type: 'pie'
+            }];
+
+            var layout = {
+              title: 'Annotation Statistics',
+              annotations: [
+                {
+                  font: {
+                    size: 18
+                  },
+                  showarrow: false,
+                  text: sum(this.stats),
+                  x: 0.5,
+                  y: 0.5
+                }
+              ],
+              height: 400,
+              showlegend: true,
+              grid: {rows: 1, columns: 1}
+            };
+
+            Plotly.newPlot('annstats', data, layout);
           }
         }
         catch(e){
@@ -267,13 +449,43 @@
       goToAuthen(){
         $("#disclaimer-layout").hide()
         $("#authen-layout").show()
+        var data = [{
+          values: [this.stats["yes_no"], this.stats["yes_yes"], this.stats["no_no"], this.stats["no_yes"], this.stats["nolabel"]],
+          labels: ["Only TP", "TP+FP", "Neither TP nor FP", "Only FP", "Not annotated yet"],
+          marker: {
+            colors: this.colorCodes
+          },
+          domain: {column: 0},
+          name: 'GradCAM',
+          hole: .4,
+          type: 'pie'
+        }];
+
+        var layout = {
+          title: 'Annotation Statistics',
+          annotations: [
+            {
+              font: {
+                size: 18
+              },
+              showarrow: false,
+              text: sum(this.stats),
+              x: 0.5,
+              y: 0.5
+            }
+          ],
+          height: 400,
+          showlegend: true,
+          grid: {rows: 1, columns: 1}
+        };
+
+        Plotly.newPlot('annstats', data, layout);
       },
   
       async showCAM(selectedSample){
         this.selectedSample = selectedSample
         console.log(this.selectedSample)
         this.sample = await this.client.get(`${this.baseUrl}/task/deepcoronascan/sample/${this.selectedSample}/update`)
-        console.log("Sample: ", this.sample)
         if (jQuery.isEmptyObject(this.sample.placeholder_files)) {
           this.camCheck = {"TP": null, "FP": null};
         } else {
@@ -448,6 +660,8 @@
       </div> 
       <div class="main" id="statistics">
         <div id="annstats"></div>
+        <div id="cf"></div>
+        <div id="experiments-chart"></div>
         <!-- <iframe id="gradcam"
           title="GradCAM"
           width="100%"
