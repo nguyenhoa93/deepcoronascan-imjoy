@@ -193,262 +193,7 @@
       camUrl: "https://hms-dbmi.github.io/vizarr/?source=https://s3.embassy.ebi.ac.uk/idr/zarr/v0.1/4495402.zarr"
     },
     methods: {
-      async login(){
-        try{
-          this.client = new Client(this.baseUrl)
-          this.tasks = await this.client.get(`${this.baseUrl}/tasks`)
-          console.log("Client: ", this.client)
-          console.log("Tasks: ", this.tasks)
-          if (this.client.accessToken) {
-            $("#logout-but").show()
-            $("#avatar-img").show()
-            $("#avatar-img").text(this.client.userInfo.name.charAt(0))
-            if ("deepcoronascan" in this.tasks) {
-              $("#eval-cam").show()
-            }
-            const all_samples = await this.client.get(`${this.baseUrl}/task/deepcoronascan/all`)
-            console.log("All samples: ", all_samples)
-            for (const [key, sample_name] of Object.entries(all_samples)) {
-              const sample = await this.client.get(`${this.baseUrl}/task/deepcoronascan/sample/${sample_name}/update`);
-              // Experiment statistics
-              if (sample_name == "stats") {
-                this.experiments = await fetch(sample.input_files["image.ome.tif_offsets.json"]).then(res => res.json());
-                console.log("Experiments: ", this.experiments)
-                // CF
-                let sens = this.experiments["sensitivity"][this.experiments["sensitivity"].length-1]
-                let specs = this.experiments["specificity"][this.experiments["specificity"].length-1]
-                var xValues = ['POS', 'NEG'];
-
-                var yValues = ['Pred POS', 'Pred NEG'];
-
-                var zValues = [
-                  [sens, (1-specs).toFixed(2)],
-                  [(1-sens).toFixed(2), specs]
-                ];
-
-                var colorscaleValue = [
-                  [0, '#FFFFFF'],
-                  [1, '#001f3f']
-                ];
-
-                var data = [{
-                  x: xValues,
-                  y: yValues,
-                  z: zValues,
-                  type: 'heatmap',
-                  colorscale: colorscaleValue,
-                  showscale: true
-                }];
-
-                var layout = {
-                  title: 'Current confusion matrix',
-                  annotations: [],
-                  height: 400,
-                  width: 420,
-                  xaxis: {
-                    ticks: '',
-                    side: 'bottom'
-                  },
-                  yaxis: {
-                    ticks: '',
-                    ticksuffix: ' ',
-                    width: 700,
-                    height: 700,
-                    autosize: true
-                  }
-                };
-
-                for ( var i = 0; i < yValues.length; i++ ) {
-                  for ( var j = 0; j < xValues.length; j++ ) {
-                    var currentValue = zValues[i][j];
-                    if (currentValue > 0.5) {
-                      var textColor = 'white';
-                    }else{
-                      var textColor = 'black';
-                    }
-                    var result = {
-                      xref: 'x1',
-                      yref: 'y1',
-                      x: xValues[j],
-                      y: yValues[i],
-                      text: zValues[i][j],
-                      font: {
-                        family: 'Arial',
-                        size: 12,
-                        color: 'rgb(50, 171, 96)'
-                      },
-                      showarrow: false,
-                      font: {
-                        color: textColor
-                      }
-                    };
-                    layout.annotations.push(result);
-                  }
-                }
-
-                Plotly.newPlot('cf', data, layout);
-                // end CF
-
-                // Experiments chart
-                var start = 1
-                var end = this.experiments["sensitivity"].length
-                var experiment_names = []
-                while (start < end+1) {
-                  experiment_names.push("Exp" + start.toString())
-                  start++;
-                }
-                var trace1 = {
-                  x: experiment_names,
-                  y: this.experiments["sensitivity"],
-                  type: 'bar',
-                  name: 'Sensitivity',
-                  marker: {
-                    color: '#138D75',
-                    opacity: 0.7,
-                  }
-                };
-
-                var trace2 = {
-                  x: experiment_names,
-                  y: this.experiments["specificity"],
-                  type: 'bar',
-                  name: 'Specificity',
-                  marker: {
-                    color: '#BA4A00',
-                    opacity: 0.5
-                  }
-                };
-
-                var trace3 = {
-                  x: experiment_names,
-                  y: this.experiments["CHIPS-sensitivity"],
-                  type: 'bar',
-                  name: 'CHIPS-Sensitivity',
-                  marker: {
-                    color: 'rgb(49,130,189)',
-                    opacity: 0.7,
-                  }
-                };
-
-                var trace4 = {
-                  x: experiment_names,
-                  y: this.experiments["CHIPS-specificity"],
-                  type: 'bar',
-                  name: 'CHIPS-Specificity',
-                  marker: {
-                    color: '#F1C40F',
-                    opacity: 0.5
-                  }
-                };
-
-                var data = [trace1, trace2, trace3, trace4];
-
-                var layout = {
-                  title: 'Experiments',
-                  xaxis: {
-                    tickangle: -45
-                  },
-                  barmode: 'group'
-                };
-
-                Plotly.newPlot('experiments-chart', data, layout);
-
-                // End Experiments chart
-
-              } else { // samples
-                var sample_info = {}
-                sample_info["name"] = sample_name
-                if (jQuery.isEmptyObject(sample.placeholder_files)) {
-                  var label = {"TP": null, "FP": null};
-                } else {
-                  var label = await fetch(sample.placeholder_files["annotation.json"]).then(res => res.json());
-                }
-                
-                if (label["TP"] == "no"){
-                  if (label["FP"]=="no"){
-                    sample_info["label"] = this.colorCodes[2]
-                    this.stats["no_no"] += 1
-                  } else {
-                    sample_info["label"] = this.colorCodes[3]
-                    this.stats["no_yes"] += 1
-                  }
-                } else if (label["TP"] == "yes"){
-                  if (label["FP"]=="no"){
-                    sample_info["label"] = this.colorCodes[0]
-                    this.stats["yes_no"] += 1
-                  } else {
-                    sample_info["label"] = this.colorCodes[1]
-                    this.stats["yes_yes"] += 1
-                  }
-                } else {
-                  this.stats["nolabel"] += 1
-                }
-                this.samples.push(sample_info)
-              }
-            }
-            console.log("Statistics: ", this.stats)
-            var data = [{
-              values: [this.stats["yes_no"], this.stats["yes_yes"], this.stats["no_no"], this.stats["no_yes"], this.stats["nolabel"]],
-              labels: ["Only TP", "TP+FP", "Neither TP nor FP", "Only FP", "Not annotated yet"],
-              marker: {
-                colors: this.colorCodes
-              },
-              domain: {column: 0},
-              name: 'GradCAM',
-              hole: .4,
-              type: 'pie'
-            }];
-
-            var layout = {
-              title: 'Annotation Statistics',
-              annotations: [
-                {
-                  font: {
-                    size: 18
-                  },
-                  showarrow: false,
-                  text: sum(this.stats),
-                  x: 0.5,
-                  y: 0.5
-                }
-              ],
-              height: 400,
-              showlegend: true,
-              grid: {rows: 1, columns: 1}
-            };
-
-            Plotly.newPlot('annstats', data, layout);
-          }
-        }
-        catch(e){
-          api.alert(`Failed to connect to the backend server, error: ${e}`)
-        }
-        finally{
-          this.$vs.loading.close()
-        }
-      },
-  
-      logout(){
-        this.client.logout()
-        this.client = null
-        $("#eval-cam").hide()
-        $("#authen-layout").hide()
-        $("#disclaimer-layout").show()
-      },
-  
-      goToPublic(){
-        $("#disclaimer-layout").hide()
-        $("#public-layout").show()
-      },
-  
-      goBackDisclaimer(){
-        $("#public-layout").hide()
-        $("#disclaimer-layout").show()
-      },
-  
-      goToAuthen(){
-        $("#disclaimer-layout").hide()
-        $("#authen-layout").show()
+      plotAnnStats() {
         var data = [{
           values: [this.stats["yes_no"], this.stats["yes_yes"], this.stats["no_no"], this.stats["no_yes"], this.stats["nolabel"]],
           labels: ["Only TP", "TP+FP", "Neither TP nor FP", "Only FP", "Not annotated yet"],
@@ -481,6 +226,277 @@
 
         Plotly.newPlot('annstats', data, layout);
       },
+      plotCF() {
+        let sens = this.experiments["sensitivity"][this.experiments["sensitivity"].length-1]
+        let specs = this.experiments["specificity"][this.experiments["specificity"].length-1]
+        var xValues = ['POS', 'NEG'];
+
+        var yValues = ['Pred POS', 'Pred NEG'];
+
+        var zValues = [
+          [sens, (1-specs).toFixed(2)],
+          [(1-sens).toFixed(2), specs]
+        ];
+
+        var colorscaleValue = [
+          [0, '#FFFFFF'],
+          [1, '#001f3f']
+        ];
+
+        var data = [{
+          x: xValues,
+          y: yValues,
+          z: zValues,
+          type: 'heatmap',
+          colorscale: colorscaleValue,
+          showscale: true
+        }];
+
+        var layout = {
+          title: 'Current confusion matrix',
+          annotations: [],
+          height: 400,
+          width: 420,
+          xaxis: {
+            ticks: '',
+            side: 'bottom'
+          },
+          yaxis: {
+            ticks: '',
+            ticksuffix: ' ',
+            width: 700,
+            height: 700,
+            autosize: true
+          }
+        };
+
+        for ( var i = 0; i < yValues.length; i++ ) {
+          for ( var j = 0; j < xValues.length; j++ ) {
+            var currentValue = zValues[i][j];
+            if (currentValue > 0.5) {
+              var textColor = 'white';
+            }else{
+              var textColor = 'black';
+            }
+            var result = {
+              xref: 'x1',
+              yref: 'y1',
+              x: xValues[j],
+              y: yValues[i],
+              text: zValues[i][j],
+              font: {
+                family: 'Arial',
+                size: 12,
+                color: 'rgb(50, 171, 96)'
+              },
+              showarrow: false,
+              font: {
+                color: textColor
+              }
+            };
+            layout.annotations.push(result);
+          }
+        }
+
+        Plotly.newPlot('cf', data, layout);
+      },
+
+      plotExpChart(){
+        var start = 1
+        var end = this.experiments["sensitivity"].length
+        var experiment_names = []
+        while (start < end+1) {
+          experiment_names.push("Exp" + start.toString())
+          start++;
+        }
+        var trace1 = {
+          x: experiment_names,
+          y: this.experiments["sensitivity"],
+          type: 'bar',
+          name: 'Sensitivity',
+          marker: {
+            color: '#138D75',
+            opacity: 0.7,
+          }
+        };
+
+        var trace2 = {
+          x: experiment_names,
+          y: this.experiments["specificity"],
+          type: 'bar',
+          name: 'Specificity',
+          marker: {
+            color: '#BA4A00',
+            opacity: 0.5
+          }
+        };
+
+        var trace3 = {
+          x: experiment_names,
+          y: this.experiments["CHIPS-sensitivity"],
+          type: 'bar',
+          name: 'CHIPS-Sensitivity',
+          marker: {
+            color: 'rgb(49,130,189)',
+            opacity: 0.7,
+          }
+        };
+
+        var trace4 = {
+          x: experiment_names,
+          y: this.experiments["CHIPS-specificity"],
+          type: 'bar',
+          name: 'CHIPS-Specificity',
+          marker: {
+            color: '#F1C40F',
+            opacity: 0.5
+          }
+        };
+
+        var data = [trace1, trace2, trace3, trace4];
+
+        var layout = {
+          title: 'Experiments',
+          xaxis: {
+            tickangle: -45
+          },
+          barmode: 'group'
+        };
+
+        Plotly.newPlot('experiments-chart', data, layout);
+      },
+
+      async login(){
+        try{
+          this.client = new Client(this.baseUrl)
+          this.tasks = await this.client.get(`${this.baseUrl}/tasks`)
+          console.log("Client: ", this.client)
+          console.log("Tasks: ", this.tasks)
+          if (this.client.accessToken) {
+            $("#logout-but").show()
+            $("#avatar-img").show()
+            $("#avatar-img").text(this.client.userInfo.name.charAt(0))
+            if ("deepcoronascan" in this.tasks) {
+              $("#eval-cam").show()
+            }
+            const all_samples = await this.client.get(`${this.baseUrl}/task/deepcoronascan/all`)
+            // console.log("All samples: ", all_samples)
+            for (const [key, sample_name] of Object.entries(all_samples)) {
+              const sample = await this.client.get(`${this.baseUrl}/task/deepcoronascan/sample/${sample_name}/update`);
+              // Experiment statistics
+              if (sample_name == "stats") {
+                this.experiments = await fetch(sample.input_files["image.ome.tif_offsets.json"]).then(res => res.json());
+                console.log("Experiments: ", this.experiments)
+                // CF
+                this.plotCF()
+                // end CF
+
+                // Experiments chart
+                this.plotExpChart()
+                // End Experiments chart
+
+              } else { // samples
+                var sample_info = {}
+                sample_info["name"] = sample_name
+                if (jQuery.isEmptyObject(sample.placeholder_files)) {
+                  var label = {"TP": null, "FP": null};
+                } else {
+                  var label = await fetch(sample.placeholder_files["annotation.json"]).then(res => res.json());
+                }
+                // stats
+                if (label["TP"] == "no"){
+                  if (label["FP"]=="no"){
+                    sample_info["label"] = this.colorCodes[2]
+                    this.stats["no_no"] += 1
+                  } else if (label["FP"]=="yes") {
+                    sample_info["label"] = this.colorCodes[3]
+                    this.stats["no_yes"] += 1
+                  } else {
+                    this.stats["nolabel"] += 1
+                  }
+                } else if (label["TP"] == "yes"){
+                  if (label["FP"]=="no"){
+                    sample_info["label"] = this.colorCodes[0]
+                    this.stats["yes_no"] += 1
+                  } else if (label["FP"]=="yes") {
+                    sample_info["label"] = this.colorCodes[1]
+                    this.stats["yes_yes"] += 1
+                  } else {
+                    this.stats["nolabel"] += 1
+                  }
+                } else {
+                  this.stats["nolabel"] += 1
+                }
+                // end stats
+                this.samples.push(sample_info)
+              }
+            }
+            console.log("Statistics: ", this.stats)
+            this.plotAnnStats() // update annotation statistics chart
+          }
+        }
+        catch(e){
+          api.alert(`Failed to connect to the backend server, error: ${e}`)
+        }
+        finally{
+          this.$vs.loading.close()
+        }
+      },
+  
+      logout(){
+        this.client.logout()
+        this.client = null
+        $("#eval-cam").hide()
+        $("#authen-layout").hide()
+        $("#disclaimer-layout").show()
+      },
+  
+      goToPublic(){
+        $("#disclaimer-layout").hide()
+        $("#public-layout").show()
+      },
+  
+      goBackDisclaimer(){
+        $("#public-layout").hide()
+        $("#disclaimer-layout").show()
+      },
+  
+      goToAuthen(){
+        $("#disclaimer-layout").hide()
+        $("#authen-layout").show()
+        this.plotAnnStats()
+        // var data = [{
+        //   values: [this.stats["yes_no"], this.stats["yes_yes"], this.stats["no_no"], this.stats["no_yes"], this.stats["nolabel"]],
+        //   labels: ["Only TP", "TP+FP", "Neither TP nor FP", "Only FP", "Not annotated yet"],
+        //   marker: {
+        //     colors: this.colorCodes
+        //   },
+        //   domain: {column: 0},
+        //   name: 'GradCAM',
+        //   hole: .4,
+        //   type: 'pie'
+        // }];
+
+        // var layout = {
+        //   title: 'Annotation Statistics',
+        //   annotations: [
+        //     {
+        //       font: {
+        //         size: 18
+        //       },
+        //       showarrow: false,
+        //       text: sum(this.stats),
+        //       x: 0.5,
+        //       y: 0.5
+        //     }
+        //   ],
+        //   height: 400,
+        //   showlegend: true,
+        //   grid: {rows: 1, columns: 1}
+        // };
+
+        // Plotly.newPlot('annstats', data, layout);
+      },
   
       async showCAM(selectedSample){
         this.selectedSample = selectedSample
@@ -509,7 +525,7 @@
           "source": im_store,
           "name": this.selectedSample,
           "axis_labels": ["z-axis", "Grayscale", "Green"]}
-        viewer.add_image(img)
+        await viewer.add_image(img)
   
         // cam
         const cam_refUrl = this.sample.input_files["cam.ome.tif_offsets.json"]
@@ -522,7 +538,7 @@
           "axis_labels": ["z-axis", "Red", "Green", "Blue"],
           "names": ["Red", "Green", "Blue"],
           "visibilities": [true, true, true]}
-        viewer.add_image(cam)
+        await viewer.add_image(cam)
         
       },
   
@@ -541,20 +557,48 @@
         } catch(e) {
           api.alert(`Failed to save annotation, error: ${e}`)
         }
-        
+        // Statistics
+        if ((this.camCheck["TP"] == null) || (this.camCheck["FP"] == null)){
+          this.stats["nolabel"] -= 1
+        }
+
+        if (this.camCheck["TP"] == "yes") {
+          if (this.camCheck["FP"] == "no") {
+            this.stats["yes_no"] -= 1
+          } else if (this.camCheck["FP"] == "yes") {
+            this.stats["yes_yes"] -= 1
+          }
+        } else if (this.camCheck["TP"] == "no"){
+          if (this.camCheck["FP"] == "no") {
+            this.stats["no_no"] -= 1
+          } else if (this.camCheck["FP"] == "yes") {
+            this.stats["no_yes"] -= 1
+          }
+        }
+
         if (this.camTP == "yes") {
           if (this.camFP == "no") {
             this.samples.find(x => x.name == this.selectedSample).label = this.colorCodes[0]
-          } else {
+            this.stats["yes_no"] += 1
+          } else if (this.camFP == "yes") {
             this.samples.find(x => x.name == this.selectedSample).label = this.colorCodes[1]
+            this.stats["yes_yes"] += 1
           }
         } else if (this.camTP == "no") {
           if (this.camFP == "no") {
             this.samples.find(x => x.name == this.selectedSample).label = this.colorCodes[2]
-          } else {
+            this.stats["no_no"] += 1
+          } else if (this.camFP == "yes") {
             this.samples.find(x => x.name == this.selectedSample).label = this.colorCodes[3]
+            this.stats["no_yes"] += 1
           }
         }
+        
+        // After update statistics, assign new values to camCheck
+        this.camCheck = {"TP": this.camTP, "FP": this.camFP}
+        // Update annotation chart
+        this.plotAnnStats()
+        // End update the chart
       }
     }
   })
@@ -657,10 +701,10 @@
         <button style="display:none;" id="save-cam-btn" @click="saveCamEval()">
             <i class="fas fa-save" aria-hidden="true"> Save</i>
         </button>
+        <div id="cf"></div>
       </div> 
       <div class="main" id="statistics">
         <div id="annstats"></div>
-        <div id="cf"></div>
         <div id="experiments-chart"></div>
         <!-- <iframe id="gradcam"
           title="GradCAM"
