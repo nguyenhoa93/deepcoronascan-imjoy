@@ -458,6 +458,7 @@ const app = new Vue({
 
     goBackDisclaimer(){
       $("#public-layout").hide()
+      $("#authen-layout").hide()
       $("#disclaimer-layout").show()
     },
 
@@ -595,6 +596,11 @@ api.export(new ImJoyPlugin())
       </div>
       <ul class="nav navbar-nav navbar-right">
         <li>
+          <button @click="goBackDisclaimer()">
+            <i class="fa fa-home" aria-hidden="true" style='font-size:50px;color:white'></i>
+          </button>
+        </li>
+        <li>
           <button class="login100-form-btn" v-if="!client || !client.accessToken" @click="login()">
               Login
           </button>
@@ -646,6 +652,7 @@ api.export(new ImJoyPlugin())
 
   <div id="authen-layout" style="display:none">
     <h1><center>GradCAM Evaluation</center></h1>
+
     <div class="sidenav">
       <hr style="color:#f1f1f1;">
       <h3 style="text-align:center;">Choose a CT scan</h3>
@@ -688,9 +695,6 @@ api.export(new ImJoyPlugin())
   <div id="public-layout" style="display:none">
     <hr>
     <h1>Update soon</h1>
-    <button @click="goBackDisclaimer()">
-      <i class="fas fa-backward" aria-hidden="true" style='font-size:30px'></i>
-    </button>
   </div>
 
   <div class="wrapper-footer">
