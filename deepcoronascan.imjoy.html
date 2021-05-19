@@ -1,384 +1,383 @@
 <docs lang="markdown">
-    [TODO: write documentation for this plugin.]
-  </docs>
-  
-  <config lang="json">
-    {
-    "name": "DeepCoronaScan",
-    "type": "window",
-    "tags": [],
-    "ui": "",
-    "version": "0.1.0",
-    "cover": "",
-    "description": "[TODO: describe this plugin with one sentence.]",
-    "icon": "extension",
-    "inputs": null,
-    "outputs": null,
-    "api_version": "0.1.8",
-    "env": "",
-    "permissions": [],
-    "requirements": [
-    "https://cdn.auth0.com/js/lock/11.28.1/lock.min.js",
-    "https://cdn.auth0.com/js/auth0-spa-js/1.13.6/auth0-spa-js.production.js",
-    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css",
-    "https://nguyenhoa93.github.io/deepcoronascan-imjoy/css/main.css",
-    "https://nguyenhoa93.github.io/deepcoronascan-imjoy/css/util.css",
-    "https://cdn.jsdelivr.net/npm/vuesax/dist/vuesax.css",
-    "https://unpkg.com/vue/dist/vue.js",
-    "https://unpkg.com/vuesax",
-    "https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.2/axios.min.js",
-    "https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js",
-    "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css",
-    "https://unpkg.com/zarr@0.4.0/zarr.umd.js",
-    "https://cdn.plot.ly/plotly-latest.min.js"
-    ],
-    "dependencies": [],
-    "defaults": {"fullscreen": true}
-    }
-  </config>
-  
-  <script lang="javascript">
-  const LOGOUT_URL = "https://imjoy.io/lite?plugin=https://github.com/nguyenhoa93/deepcoronascan-imjoy/blob/master/deepcoronascan.imjoy.html"
+  [TODO: write documentation for this plugin.]
+</docs>
 
-  function sum( obj ) {
-    var sum = 0;
-    for( var el in obj ) {
-      if( obj.hasOwnProperty( el ) ) {
-        sum += parseFloat( obj[el] );
-      }
-    }
-    return sum;
+<config lang="json">
+  {
+  "name": "DeepCoronaScan",
+  "type": "window",
+  "tags": [],
+  "ui": "",
+  "version": "0.1.0",
+  "cover": "",
+  "description": "[TODO: describe this plugin with one sentence.]",
+  "icon": "extension",
+  "inputs": null,
+  "outputs": null,
+  "api_version": "0.1.8",
+  "env": "",
+  "permissions": [],
+  "requirements": [
+  "https://cdn.auth0.com/js/lock/11.28.1/lock.min.js",
+  "https://cdn.auth0.com/js/auth0-spa-js/1.13.6/auth0-spa-js.production.js",
+  "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css",
+  "https://nguyenhoa93.github.io/deepcoronascan-imjoy/css/main.css",
+  "https://nguyenhoa93.github.io/deepcoronascan-imjoy/css/util.css",
+  "https://cdn.jsdelivr.net/npm/vuesax/dist/vuesax.css",
+  "https://unpkg.com/vue/dist/vue.js",
+  "https://unpkg.com/vuesax",
+  "https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.2/axios.min.js",
+  "https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js",
+  "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css",
+  "https://unpkg.com/zarr@0.4.0/zarr.umd.js",
+  "https://cdn.plot.ly/plotly-latest.min.js"
+  ],
+  "dependencies": [],
+  "defaults": {"fullscreen": true}
   }
-  
-  class Client {
-    constructor(baseURL){
-      this.baseURL = baseURL
-      this.accessToken = null
-    }
-    async makeRequest(url, method, json){
-      if(!this.accessToken) {
-        await this.login()
-      }
-      if(!url.startsWith('http') && !url.startsWith('/')) url = this.baseURL + '/' + url;
-      const headers = {'Authorization': `Bearer ${this.accessToken}`}
-      let body = undefined
-      if(json){
-          headers['Content-Type'] = 'application/json'
-          body = JSON.stringify(json)
-      }
-      const response = await fetch(url, {
-        method,
-        headers,
-        body
-      })
-      const data = await response.json()
-      if(data.success){
-        return data.result
-      }
-      else{
-        throw new Error(data.detail || data.error)
-      }
-    }
-    async login(){
-      const auth0 = await createAuth0Client({
-        domain: 'imjoy.eu.auth0.com',
-        client_id: 'ofsvx6A7LdMhG0hklr5JCAEawLv4Pyse'
-      })
-      await auth0.loginWithPopup({audience: 'https://imjoy.eu.auth0.com/api/v2/'});
-      //logged in. you can get the user profile like this:
-      const user = await auth0.getUser({audience: 'https://imjoy.eu.auth0.com/api/v2/'});
-      this.isAdmin = false;
-      if(user){
-        if(!user.email_verified){
-          api.alert(`Please verify your email (${user.email}) by clicking the link sent from Auth0.`)
-          return
-        }
-        this.userInfo = user;
-        if(user['https://api.imjoy.io/roles'].includes('admin'))
-          this.isAdmin = true
-        console.log(user);
-      }
-      this.auth0 = auth0;
-      this.accessToken = await auth0.getTokenSilently({audience: 'https://imjoy.eu.auth0.com/api/v2/'});
-    }
-    async logout(){
-      if(!this.auth0) {
-        api.showMessage("You haven't logged in.")
-        return;
-      }
-      await this.auth0.logout({returnTo: LOGOUT_URL});
-    }
-    async get(url){
-      return this.makeRequest(url, 'GET')
-    }
-    async put(url, json){
-      return this.makeRequest(url, 'PUT', json)
-    }
-    async post(url, json){
-      return this.makeRequest(url, 'POST', json)
-    }
-    async delete(url){
-      return this.makeRequest(url, 'DELETE')
+</config>
+
+<script lang="javascript">
+const LOGOUT_URL = "https://imjoy.io/lite?plugin=https://github.com/nguyenhoa93/deepcoronascan-imjoy/blob/master/deepcoronascan.imjoy.html"
+
+function sum( obj ) {
+  var sum = 0;
+  for( var el in obj ) {
+    if( obj.hasOwnProperty( el ) ) {
+      sum += parseFloat( obj[el] );
     }
   }
-  
-  class FileReferenceStore {
-    constructor(ref, target) {
-      this.ref = ref;
-      this.target = target;
+  return sum;
+}
+
+class Client {
+  constructor(baseURL){
+    this.baseURL = baseURL
+    this.accessToken = null
+  }
+  async makeRequest(url, method, json){
+    if(!this.accessToken) {
+      await this.login()
     }
-  
-    _url(urlPath) {
-      if(!urlPath){
-        return this.target
-      }
-      const [protocol, path] = urlPath.split('://');
-      if (protocol === 'https' || protocol === 'http') {
-        return urlPath;
-      }
-      if (protocol === 'gc') {
-        return 'https://storage.googleapis.com/' + path;
-      }
-      throw Error("Protocol not supported, got: " + JSON.stringify(protocol));
+    if(!url.startsWith('http') && !url.startsWith('/')) url = this.baseURL + '/' + url;
+    const headers = {'Authorization': `Bearer ${this.accessToken}`}
+    let body = undefined
+    if(json){
+        headers['Content-Type'] = 'application/json'
+        body = JSON.stringify(json)
     }
-  
-    async getItem(key) {
-      const res = this.ref[key];
-      if (!res) {
-        // Key not in store
-        throw new zarr.KeyError(key);
+    const response = await fetch(url, {
+      method,
+      headers,
+      body
+    })
+    const data = await response.json()
+    if(data.success){
+      return data.result
+    }
+    else{
+      throw new Error(data.detail || data.error)
+    }
+  }
+  async login(){
+    const auth0 = await createAuth0Client({
+      domain: 'imjoy.eu.auth0.com',
+      client_id: 'ofsvx6A7LdMhG0hklr5JCAEawLv4Pyse'
+    })
+    await auth0.loginWithPopup({audience: 'https://imjoy.eu.auth0.com/api/v2/'});
+    //logged in. you can get the user profile like this:
+    const user = await auth0.getUser({audience: 'https://imjoy.eu.auth0.com/api/v2/'});
+    this.isAdmin = false;
+    if(user){
+      if(!user.email_verified){
+        api.alert(`Please verify your email (${user.email}) by clicking the link sent from Auth0.`)
+        return
       }
-     
-      if (res?.length !== 3) {
-        // JSON data entry in reference 
-        const meta = typeof res === 'string' ? res : JSON.stringify(res)
-        const enc = new TextEncoder().encode(meta);
-        return enc.buffer;
-      }
-  
-      const [urlPath, offset, size] = res;
-      const url = this._url(urlPath);
-      const headers = {
-        Range: `bytes=${offset}-${offset + size - 1}`
+      this.userInfo = user;
+      if(user['https://api.imjoy.io/roles'].includes('admin'))
+        this.isAdmin = true
+      console.log(user);
+    }
+    this.auth0 = auth0;
+    this.accessToken = await auth0.getTokenSilently({audience: 'https://imjoy.eu.auth0.com/api/v2/'});
+  }
+  async logout(){
+    if(!this.auth0) {
+      api.showMessage("You haven't logged in.")
+      return;
+    }
+    await this.auth0.logout({returnTo: LOGOUT_URL});
+  }
+  async get(url){
+    return this.makeRequest(url, 'GET')
+  }
+  async put(url, json){
+    return this.makeRequest(url, 'PUT', json)
+  }
+  async post(url, json){
+    return this.makeRequest(url, 'POST', json)
+  }
+  async delete(url){
+    return this.makeRequest(url, 'DELETE')
+  }
+}
+
+class FileReferenceStore {
+  constructor(ref, target) {
+    this.ref = ref;
+    this.target = target;
+  }
+
+  _url(urlPath) {
+    if(!urlPath){
+      return this.target
+    }
+    const [protocol, path] = urlPath.split('://');
+    if (protocol === 'https' || protocol === 'http') {
+      return urlPath;
+    }
+    if (protocol === 'gc') {
+      return 'https://storage.googleapis.com/' + path;
+    }
+    throw Error("Protocol not supported, got: " + JSON.stringify(protocol));
+  }
+
+  async getItem(key) {
+    const res = this.ref[key];
+    if (!res) {
+      // Key not in store
+      throw new zarr.KeyError(key);
+    }
+   
+    if (res?.length !== 3) {
+      // JSON data entry in reference 
+      const meta = typeof res === 'string' ? res : JSON.stringify(res)
+      const enc = new TextEncoder().encode(meta);
+      return enc.buffer;
+    }
+
+    const [urlPath, offset, size] = res;
+    const url = this._url(urlPath);
+    const headers = {
+      Range: `bytes=${offset}-${offset + size - 1}`
+    };
+    const value = await fetch(url, { headers }).then(res => res.arrayBuffer());
+    return value;
+  }
+
+  containsItem(key) {
+    return key in this.ref;
+  }
+
+  static async fromUrl(url, targetUrl) {
+    const ref = await fetch(url).then(res => res.json());
+    return new FileReferenceStore(ref, targetUrl);
+  }
+}
+
+const app = new Vue({
+  el: '#app',
+  data: {
+    client: null,
+    tasks: null,
+    baseUrl: 'https://ai.pasteur.fr',
+    isAuthenticated: false,
+    samples: [],
+    selectedSample: null,
+    sample: null,
+    camTP: null,
+    camFP: null,
+    stats: {"nolabel": 0, "yes_yes": 0, "yes_no": 0, "no_yes": 0, "no_no": 0},
+    colorCodes: ["#2ECC71", "#2874A6", "#B7950B", "#E30715", "#85929E"],
+    experiments: null,
+    camUrl: "https://hms-dbmi.github.io/vizarr/?source=https://s3.embassy.ebi.ac.uk/idr/zarr/v0.1/4495402.zarr"
+  },
+  methods: {
+    plotAnnStats() {
+      var data = [{
+        values: [this.stats["yes_no"], this.stats["yes_yes"], this.stats["no_no"], this.stats["no_yes"], this.stats["nolabel"]],
+        labels: ["Only TP", "TP+FP", "Neither TP nor FP", "Only FP", "Not annotated yet"],
+        marker: {
+          colors: this.colorCodes
+        },
+        domain: {column: 0},
+        name: 'GradCAM',
+        hole: .4,
+        type: 'pie'
+      }];
+
+      var layout = {
+        title: 'Annotation Statistics',
+        annotations: [
+          {
+            font: {
+              size: 18
+            },
+            showarrow: false,
+            text: sum(this.stats),
+            x: 0.5,
+            y: 0.5
+          }
+        ],
+        height: 400,
+        showlegend: true,
+        grid: {rows: 1, columns: 1}
       };
-      const value = await fetch(url, { headers }).then(res => res.arrayBuffer());
-      return value;
-    }
-  
-    containsItem(key) {
-      return key in this.ref;
-    }
-  
-    static async fromUrl(url, targetUrl) {
-      const ref = await fetch(url).then(res => res.json());
-      return new FileReferenceStore(ref, targetUrl);
-    }
-  }
-  
-  const app = new Vue({
-    el: '#app',
-    data: {
-      client: null,
-      tasks: null,
-      baseUrl: 'https://ai.pasteur.fr',
-      isAuthenticated: false,
-      samples: [],
-      selectedSample: null,
-      sample: null,
-      camTP: null,
-      camFP: null,
-      stats: {"nolabel": 0, "yes_yes": 0, "yes_no": 0, "no_yes": 0, "no_no": 0},
-      colorCodes: ["#2ECC71", "#2874A6", "#B7950B", "#E30715", "#85929E"],
-      experiments: null,
-      camUrl: "https://hms-dbmi.github.io/vizarr/?source=https://s3.embassy.ebi.ac.uk/idr/zarr/v0.1/4495402.zarr"
+
+      Plotly.newPlot('annstats', data, layout);
     },
-    methods: {
-      plotAnnStats() {
-        var data = [{
-          values: [this.stats["yes_no"], this.stats["yes_yes"], this.stats["no_no"], this.stats["no_yes"], this.stats["nolabel"]],
-          labels: ["Only TP", "TP+FP", "Neither TP nor FP", "Only FP", "Not annotated yet"],
-          marker: {
-            colors: this.colorCodes
-          },
-          domain: {column: 0},
-          name: 'GradCAM',
-          hole: .4,
-          type: 'pie'
-        }];
+    plotCF() {
+      let sens = this.experiments["sensitivity"][this.experiments["sensitivity"].length-1]
+      let specs = this.experiments["specificity"][this.experiments["specificity"].length-1]
+      var xValues = ['POS', 'NEG'];
 
-        var layout = {
-          title: 'Annotation Statistics',
-          annotations: [
-            {
-              font: {
-                size: 18
-              },
-              showarrow: false,
-              text: sum(this.stats),
-              x: 0.5,
-              y: 0.5
-            }
-          ],
-          height: 400,
-          showlegend: true,
-          grid: {rows: 1, columns: 1}
-        };
+      var yValues = ['Pred POS', 'Pred NEG'];
 
-        Plotly.newPlot('annstats', data, layout);
-      },
-      plotCF() {
-        let sens = this.experiments["sensitivity"][this.experiments["sensitivity"].length-1]
-        let specs = this.experiments["specificity"][this.experiments["specificity"].length-1]
-        var xValues = ['POS', 'NEG'];
+      var zValues = [
+        [sens, (1-specs).toFixed(2)],
+        [(1-sens).toFixed(2), specs]
+      ];
 
-        var yValues = ['Pred POS', 'Pred NEG'];
+      var colorscaleValue = [
+        [0, '#FFFFFF'],
+        [1, '#001f3f']
+      ];
 
-        var zValues = [
-          [sens, (1-specs).toFixed(2)],
-          [(1-sens).toFixed(2), specs]
-        ];
+      var data = [{
+        x: xValues,
+        y: yValues,
+        z: zValues,
+        type: 'heatmap',
+        colorscale: colorscaleValue,
+        showscale: true
+      }];
 
-        var colorscaleValue = [
-          [0, '#FFFFFF'],
-          [1, '#001f3f']
-        ];
-
-        var data = [{
-          x: xValues,
-          y: yValues,
-          z: zValues,
-          type: 'heatmap',
-          colorscale: colorscaleValue,
-          showscale: true
-        }];
-
-        var layout = {
-          title: 'Current confusion matrix',
-          annotations: [],
-          height: 400,
-          width: 420,
-          xaxis: {
-            ticks: '',
-            side: 'bottom'
-          },
-          yaxis: {
-            ticks: '',
-            ticksuffix: ' ',
-            width: 700,
-            height: 700,
-            autosize: true
-          }
-        };
-
-        for ( var i = 0; i < yValues.length; i++ ) {
-          for ( var j = 0; j < xValues.length; j++ ) {
-            var currentValue = zValues[i][j];
-            if (currentValue > 0.5) {
-              var textColor = 'white';
-            }else{
-              var textColor = 'black';
-            }
-            var result = {
-              xref: 'x1',
-              yref: 'y1',
-              x: xValues[j],
-              y: yValues[i],
-              text: zValues[i][j],
-              font: {
-                family: 'Arial',
-                size: 12,
-                color: 'rgb(50, 171, 96)'
-              },
-              showarrow: false,
-              font: {
-                color: textColor
-              }
-            };
-            layout.annotations.push(result);
-          }
+      var layout = {
+        title: 'Current confusion matrix',
+        annotations: [],
+        height: 400,
+        width: 420,
+        xaxis: {
+          ticks: '',
+          side: 'bottom'
+        },
+        yaxis: {
+          ticks: '',
+          ticksuffix: ' ',
+          width: 700,
+          height: 700,
+          autosize: true
         }
+      };
 
-        Plotly.newPlot('cf', data, layout);
-      },
-
-      plotExpChart(){
-        var start = 1
-        var end = this.experiments["sensitivity"].length
-        var experiment_names = []
-        while (start < end+1) {
-          experiment_names.push("Exp" + start.toString())
-          start++;
-        }
-        var trace1 = {
-          x: experiment_names,
-          y: this.experiments["sensitivity"],
-          type: 'bar',
-          name: 'Sensitivity',
-          marker: {
-            color: '#138D75',
-            opacity: 0.7,
+      for ( var i = 0; i < yValues.length; i++ ) {
+        for ( var j = 0; j < xValues.length; j++ ) {
+          var currentValue = zValues[i][j];
+          if (currentValue > 0.5) {
+            var textColor = 'white';
+          }else{
+            var textColor = 'black';
           }
-        };
-
-        var trace2 = {
-          x: experiment_names,
-          y: this.experiments["specificity"],
-          type: 'bar',
-          name: 'Specificity',
-          marker: {
-            color: '#BA4A00',
-            opacity: 0.5
-          }
-        };
-
-        var trace3 = {
-          x: experiment_names,
-          y: this.experiments["CHIPS-sensitivity"],
-          type: 'bar',
-          name: 'CHIPS-Sensitivity',
-          marker: {
-            color: 'rgb(49,130,189)',
-            opacity: 0.7,
-          }
-        };
-
-        var trace4 = {
-          x: experiment_names,
-          y: this.experiments["CHIPS-specificity"],
-          type: 'bar',
-          name: 'CHIPS-Specificity',
-          marker: {
-            color: '#F1C40F',
-            opacity: 0.5
-          }
-        };
-
-        var data = [trace1, trace2, trace3, trace4];
-
-        var layout = {
-          title: 'Experiments',
-          xaxis: {
-            tickangle: -45
-          },
-          barmode: 'group'
-        };
-
-        Plotly.newPlot('experiments-chart', data, layout);
-      },
-
-      async login(){
-        try{
-          this.client = new Client(this.baseUrl)
-          this.tasks = await this.client.get(`${this.baseUrl}/tasks`)
-          console.log("Client: ", this.client)
-          console.log("Tasks: ", this.tasks)
-          if (this.client.accessToken) {
-            $("#logout-but").show()
-            $("#avatar-img").show()
-            $("#avatar-img").text(this.client.userInfo.name.charAt(0))
-            if ("deepcoronascan" in this.tasks) {
-              $("#eval-cam").show()
+          var result = {
+            xref: 'x1',
+            yref: 'y1',
+            x: xValues[j],
+            y: yValues[i],
+            text: zValues[i][j],
+            font: {
+              family: 'Arial',
+              size: 12,
+              color: 'rgb(50, 171, 96)'
+            },
+            showarrow: false,
+            font: {
+              color: textColor
             }
+          };
+          layout.annotations.push(result);
+        }
+      }
+
+      Plotly.newPlot('cf', data, layout);
+    },
+
+    plotExpChart(){
+      var start = 1
+      var end = this.experiments["sensitivity"].length
+      var experiment_names = []
+      while (start < end+1) {
+        experiment_names.push("Exp" + start.toString())
+        start++;
+      }
+      var trace1 = {
+        x: experiment_names,
+        y: this.experiments["sensitivity"],
+        type: 'bar',
+        name: 'Sensitivity',
+        marker: {
+          color: '#138D75',
+          opacity: 0.7,
+        }
+      };
+
+      var trace2 = {
+        x: experiment_names,
+        y: this.experiments["specificity"],
+        type: 'bar',
+        name: 'Specificity',
+        marker: {
+          color: '#BA4A00',
+          opacity: 0.5
+        }
+      };
+
+      var trace3 = {
+        x: experiment_names,
+        y: this.experiments["CHIPS-sensitivity"],
+        type: 'bar',
+        name: 'CHIPS-Sensitivity',
+        marker: {
+          color: 'rgb(49,130,189)',
+          opacity: 0.7,
+        }
+      };
+
+      var trace4 = {
+        x: experiment_names,
+        y: this.experiments["CHIPS-specificity"],
+        type: 'bar',
+        name: 'CHIPS-Specificity',
+        marker: {
+          color: '#F1C40F',
+          opacity: 0.5
+        }
+      };
+
+      var data = [trace1, trace2, trace3, trace4];
+
+      var layout = {
+        title: 'Experiments',
+        xaxis: {
+          tickangle: -45
+        },
+        barmode: 'group'
+      };
+
+      Plotly.newPlot('experiments-chart', data, layout);
+    },
+
+    async login(){
+      try{
+        this.client = new Client(this.baseUrl)
+        this.tasks = await this.client.get(`${this.baseUrl}/tasks`)
+        console.log("Client: ", this.client)
+        console.log("Tasks: ", this.tasks)
+        if (this.client.accessToken) {
+          $("#logout-but").show()
+          $("#avatar-img").show()
+          $("#avatar-img").text(this.client.userInfo.name.charAt(0))
+          if ("deepcoronascan" in this.tasks) {
+            $("#eval-cam").show()
             const all_samples = await this.client.get(`${this.baseUrl}/task/deepcoronascan/all`)
             // console.log("All samples: ", all_samples)
             for (const [key, sample_name] of Object.entries(all_samples)) {
@@ -388,11 +387,11 @@
                 this.experiments = await fetch(sample.input_files["image.ome.tif_offsets.json"]).then(res => res.json());
                 console.log("Experiments: ", this.experiments)
                 // CF
-                this.plotCF()
+                // this.plotCF()
                 // end CF
 
                 // Experiments chart
-                this.plotExpChart()
+                // this.plotExpChart()
                 // End Experiments chart
 
               } else { // samples
@@ -435,388 +434,359 @@
             this.plotAnnStats() // update annotation statistics chart
           }
         }
-        catch(e){
-          api.alert(`Failed to connect to the backend server, error: ${e}`)
-        }
-        finally{
-          this.$vs.loading.close()
-        }
-      },
-  
-      logout(){
-        this.client.logout()
-        this.client = null
-        $("#eval-cam").hide()
-        $("#authen-layout").hide()
-        $("#disclaimer-layout").show()
-      },
-  
-      goToPublic(){
-        $("#disclaimer-layout").hide()
-        $("#public-layout").show()
-      },
-  
-      goBackDisclaimer(){
-        $("#public-layout").hide()
-        $("#disclaimer-layout").show()
-      },
-  
-      goToAuthen(){
-        $("#disclaimer-layout").hide()
-        $("#authen-layout").show()
-        this.plotAnnStats()
-        // var data = [{
-        //   values: [this.stats["yes_no"], this.stats["yes_yes"], this.stats["no_no"], this.stats["no_yes"], this.stats["nolabel"]],
-        //   labels: ["Only TP", "TP+FP", "Neither TP nor FP", "Only FP", "Not annotated yet"],
-        //   marker: {
-        //     colors: this.colorCodes
-        //   },
-        //   domain: {column: 0},
-        //   name: 'GradCAM',
-        //   hole: .4,
-        //   type: 'pie'
-        // }];
-
-        // var layout = {
-        //   title: 'Annotation Statistics',
-        //   annotations: [
-        //     {
-        //       font: {
-        //         size: 18
-        //       },
-        //       showarrow: false,
-        //       text: sum(this.stats),
-        //       x: 0.5,
-        //       y: 0.5
-        //     }
-        //   ],
-        //   height: 400,
-        //   showlegend: true,
-        //   grid: {rows: 1, columns: 1}
-        // };
-
-        // Plotly.newPlot('annstats', data, layout);
-      },
-  
-      async showCAM(selectedSample){
-        this.selectedSample = selectedSample
-        console.log(this.selectedSample)
-        this.sample = await this.client.get(`${this.baseUrl}/task/deepcoronascan/sample/${this.selectedSample}/update`)
-        if (jQuery.isEmptyObject(this.sample.placeholder_files)) {
-          this.camCheck = {"TP": null, "FP": null};
-        } else {
-          this.camCheck = await fetch(this.sample.placeholder_files["annotation.json"]).then(res => res.json());
-        }
-        
-        this.camTP = this.camCheck["TP"]
-        this.camFP = this.camCheck["FP"]
-        console.log(this.camTP)
-        $("#sample-name").show()
-        $("#gradcam-tp").show()
-        $("#gradcam-fp").show()
-        $("#save-cam-btn").show()
-        const viewer = await api.showDialog({src: 'https://hms-dbmi.github.io/vizarr'})
-        // image
-        const refUrl = this.sample.input_files["image.ome.tif_offsets.json"]
-        const targetUrl = this.sample.input_files["image.ome.tif"]
-        const im_store = await FileReferenceStore.fromUrl(refUrl, targetUrl)
-  
-        const img = {
-          "source": im_store,
-          "name": this.selectedSample,
-          "axis_labels": ["z-axis", "Grayscale", "Green"]}
-        await viewer.add_image(img)
-  
-        // cam
-        const cam_refUrl = this.sample.input_files["cam.ome.tif_offsets.json"]
-        const cam_targetUrl = this.sample.input_files["cam.ome.tif"]
-        const cam_store = await FileReferenceStore.fromUrl(cam_refUrl, cam_targetUrl)
-        const cam = {
-          "source": cam_store,
-          "name": "GradCAM",
-          "channel_axis": 1,
-          "axis_labels": ["z-axis", "Red", "Green", "Blue"],
-          "names": ["Red", "Green", "Blue"],
-          "visibilities": [true, true, true]}
-        await viewer.add_image(cam)
-        
-      },
-  
-      async saveCamEval(){
-        try{
-          const sample = this.sample
-          const url = sample.target_files["annotation.json"]
-          const options = {
-            onUploadProgress: (progressEvent) => {
-              const progress = Math.round(1.0 * progressEvent.loaded / file.size * 100.0)
-              api.showMessage("uploading annotation, size: "+Math.round(file.size/1000000)+"MB, " + progress + "% uploaded.");
-            }
-          };
-          const file = new File([JSON.stringify({"TP": this.camTP, "FP": this.camFP})], "annotation.json", {type:"application/json"})
-          await axios.put(url, file, options)
-        } catch(e) {
-          api.alert(`Failed to save annotation, error: ${e}`)
-        }
-        // Statistics
-        if ((this.camCheck["TP"] == null) || (this.camCheck["FP"] == null)){
-          this.stats["nolabel"] -= 1
-        }
-
-        if (this.camCheck["TP"] == "yes") {
-          if (this.camCheck["FP"] == "no") {
-            this.stats["yes_no"] -= 1
-          } else if (this.camCheck["FP"] == "yes") {
-            this.stats["yes_yes"] -= 1
-          }
-        } else if (this.camCheck["TP"] == "no"){
-          if (this.camCheck["FP"] == "no") {
-            this.stats["no_no"] -= 1
-          } else if (this.camCheck["FP"] == "yes") {
-            this.stats["no_yes"] -= 1
-          }
-        }
-
-        if (this.camTP == "yes") {
-          if (this.camFP == "no") {
-            this.samples.find(x => x.name == this.selectedSample).label = this.colorCodes[0]
-            this.stats["yes_no"] += 1
-          } else if (this.camFP == "yes") {
-            this.samples.find(x => x.name == this.selectedSample).label = this.colorCodes[1]
-            this.stats["yes_yes"] += 1
-          }
-        } else if (this.camTP == "no") {
-          if (this.camFP == "no") {
-            this.samples.find(x => x.name == this.selectedSample).label = this.colorCodes[2]
-            this.stats["no_no"] += 1
-          } else if (this.camFP == "yes") {
-            this.samples.find(x => x.name == this.selectedSample).label = this.colorCodes[3]
-            this.stats["no_yes"] += 1
-          }
-        }
-        
-        // After update statistics, assign new values to camCheck
-        this.camCheck = {"TP": this.camTP, "FP": this.camFP}
-        // Update annotation chart
-        this.plotAnnStats()
-        // End update the chart
       }
-    }
-  })
-  
-  class ImJoyPlugin {
-    async setup() {
-  
-    }
-  
-    async run(ctx) {
-  
+      catch(e){
+        api.alert(`Failed to connect to the backend server, error: ${e}`)
+      }
+      finally{
+        this.$vs.loading.close()
+      }
+    },
+
+    logout(){
+      this.client.logout()
+      this.client = null
+      $("#eval-cam").hide()
+      $("#authen-layout").hide()
+      $("#disclaimer-layout").show()
+    },
+
+    goToPublic(){
+      $("#disclaimer-layout").hide()
+      $("#public-layout").show()
+    },
+
+    goBackDisclaimer(){
+      $("#public-layout").hide()
+      $("#disclaimer-layout").show()
+    },
+
+    goToAuthen(){
+      $("#disclaimer-layout").hide()
+      $("#authen-layout").show()
+      this.plotAnnStats()
+    },
+
+    async showCAM(selectedSample){
+      this.selectedSample = selectedSample
+      console.log(this.selectedSample)
+      this.sample = await this.client.get(`${this.baseUrl}/task/deepcoronascan/sample/${this.selectedSample}/update`)
+      if (jQuery.isEmptyObject(this.sample.placeholder_files)) {
+        this.camCheck = {"TP": null, "FP": null};
+      } else {
+        this.camCheck = await fetch(this.sample.placeholder_files["annotation.json"]).then(res => res.json());
+      }
+      
+      this.camTP = this.camCheck["TP"]
+      this.camFP = this.camCheck["FP"]
+      console.log(this.camTP)
+      $("#sample-name").show()
+      $("#gradcam-tp").show()
+      $("#gradcam-fp").show()
+      $("#save-cam-btn").show()
+      const viewer = await api.showDialog({src: 'https://hms-dbmi.github.io/vizarr'})
+      // image
+      const refUrl = this.sample.input_files["image.ome.tif_offsets.json"]
+      const targetUrl = this.sample.input_files["image.ome.tif"]
+      const im_store = await FileReferenceStore.fromUrl(refUrl, targetUrl)
+
+      const img = {
+        "source": im_store,
+        "name": this.selectedSample,
+        "axis_labels": ["z-axis", "Grayscale", "Green"],
+        "names": ["Grayscale"]}
+      await viewer.add_image(img)
+
+      // cam
+      const cam_refUrl = this.sample.input_files["cam.ome.tif_offsets.json"]
+      const cam_targetUrl = this.sample.input_files["cam.ome.tif"]
+      const cam_store = await FileReferenceStore.fromUrl(cam_refUrl, cam_targetUrl)
+      const cam = {
+        "source": cam_store,
+        "name": "GradCAM",
+        "channel_axis": 1,
+        "axis_labels": ["z-axis", "Red", "Green", "Blue"],
+        "names": ["Red", "Green", "Blue"],
+        "visibilities": [true, true, true]}
+      await viewer.add_image(cam)
+      
+    },
+
+    async saveCamEval(){
+      try{
+        const sample = this.sample
+        const url = sample.target_files["annotation.json"]
+        const options = {
+          onUploadProgress: (progressEvent) => {
+            const progress = Math.round(1.0 * progressEvent.loaded / file.size * 100.0)
+            api.showMessage("uploading annotation, size: "+Math.round(file.size/1000000)+"MB, " + progress + "% uploaded.");
+          }
+        };
+        const file = new File([JSON.stringify({"TP": this.camTP, "FP": this.camFP})], "annotation.json", {type:"application/json"})
+        await axios.put(url, file, options)
+      } catch(e) {
+        api.alert(`Failed to save annotation, error: ${e}`)
+      }
+      // Statistics
+      if ((this.camCheck["TP"] == null) || (this.camCheck["FP"] == null)){
+        this.stats["nolabel"] -= 1
+      }
+
+      if (this.camCheck["TP"] == "yes") {
+        if (this.camCheck["FP"] == "no") {
+          this.stats["yes_no"] -= 1
+        } else if (this.camCheck["FP"] == "yes") {
+          this.stats["yes_yes"] -= 1
+        }
+      } else if (this.camCheck["TP"] == "no"){
+        if (this.camCheck["FP"] == "no") {
+          this.stats["no_no"] -= 1
+        } else if (this.camCheck["FP"] == "yes") {
+          this.stats["no_yes"] -= 1
+        }
+      }
+
+      if (this.camTP == "yes") {
+        if (this.camFP == "no") {
+          this.samples.find(x => x.name == this.selectedSample).label = this.colorCodes[0]
+          this.stats["yes_no"] += 1
+        } else if (this.camFP == "yes") {
+          this.samples.find(x => x.name == this.selectedSample).label = this.colorCodes[1]
+          this.stats["yes_yes"] += 1
+        }
+      } else if (this.camTP == "no") {
+        if (this.camFP == "no") {
+          this.samples.find(x => x.name == this.selectedSample).label = this.colorCodes[2]
+          this.stats["no_no"] += 1
+        } else if (this.camFP == "yes") {
+          this.samples.find(x => x.name == this.selectedSample).label = this.colorCodes[3]
+          this.stats["no_yes"] += 1
+        }
+      }
+      
+      // After update statistics, assign new values to camCheck
+      this.camCheck = {"TP": this.camTP, "FP": this.camFP}
+      // Update annotation chart
+      this.plotAnnStats()
+      // End update the chart
     }
   }
-  
-  api.export(new ImJoyPlugin())
-  </script>
-  
-  <window lang="html">
-  <div id="app">
-    <nav class="navbar navbar-inverse">
-      <div class="container-fluid">
-        <div class="navbar-header">
-          <a class="navbar-brand" href="https://research.pasteur.fr/en/team/imaging-and-modeling/" target="_blank">Imaging and Modeling</a>
-        </div>
-        <ul class="nav navbar-nav navbar-right">
-          <li>
-            <button class="login100-form-btn" v-if="!client || !client.accessToken" @click="login()">
-                Login
-            </button>
-          </li>
-          <li>
-            <button id="logout-but" class="login100-form-btn" @click="logout()" style="display:none;">
-                Logout
-            </button>
-          </li>
-          <li>
-            <div id="avatar-img" style="display:none;"></div>
-          </li>
-        </ul>
+})
+
+class ImJoyPlugin {
+  async setup() {
+
+  }
+
+  async run(ctx) {
+
+  }
+}
+
+api.export(new ImJoyPlugin())
+</script>
+
+<window lang="html">
+<div id="app">
+  <nav class="navbar navbar-inverse">
+    <div class="container-fluid">
+      <div class="navbar-header">
+        <a class="navbar-brand" href="https://research.pasteur.fr/en/team/imaging-and-modeling/" target="_blank">Imaging and Modeling</a>
       </div>
-    </nav>
-  
-    <div id="disclaimer-layout" class="container-login100" style="background-image: url('https://github.com/nguyenhoa93/deepcoronascan-imjoy/raw/master/images/login-background.jpg');">
-      <div class="wrap-login100">
-        <span class="login100-form-logo">
-          <i class="fas fa-lungs-virus" aria-hidden="true"></i>
-        </span>
-  
-        <span class="login100-form-title p-b-34 p-t-27">
-            DeepCoronaScan
-        </span>
-  
-         <div class="text-center p-t-10 p-b-30">
-           <hr>
-          <font size="+1" color="#B03A2E">
-            <b><i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
-            DISCLAIMER: This tool is only used for research purpose, NOT ready for medical diagnosis.</b>
-          </font>
-          <br>
-          <hr>
-          <br>
-          By clicking the following button(s), I confirm to have understood the disclaimer.
-        </div>
-  
-        <div class="container-login100-form-btn">
-          <button class="login100-form-btn" @click="goToPublic()">
-              <i class="far fa-play-circle" aria-hidden="true"> Live Demo</i>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+          <button class="login100-form-btn" v-if="!client || !client.accessToken" @click="login()">
+              Login
           </button>
-          <button id="eval-cam" v-if="client" class="login100-form-btn" style="display:none" @click="goToAuthen()">
-              GradCAM Evaluation
+        </li>
+        <li>
+          <button id="logout-but" class="login100-form-btn" @click="logout()" style="display:none;">
+              Logout
           </button>
-        </div>     
-      </div>
+        </li>
+        <li>
+          <div id="avatar-img" style="display:none;"></div>
+        </li>
+      </ul>
     </div>
-  
-    <div id="authen-layout" style="display:none">
-      <h1><center>GradCAM Evaluation</center></h1>
-      <div class="sidenav">
-        <hr style="color:#f1f1f1;">
-        <h3 style="text-align:center;">Choose a CT scan</h3>
-        <hr style="color:#f1f1f1;">
-        <ul id="scan-list">
-          <li v-for="sample in samples" :key="sample.name" :style="{background: sample.label}" @click="showCAM(sample.name)">
-            {{ sample.name }}
-          </li>
-        </ul>
-  
-        <hr style="border: 3px double #487;">
-        <h4 id="sample-name" style="color:#313A3E;background-color:#FFFFFF;display:none;">GradCAM of {{ selectedSample }}</h4>
-        <form style="display:none;" id="gradcam-tp">
-          <span style="color:#F79517"> 1. Does the GradCAM highlight at least one COVID-19 lesion (true positive)?</span><br>
-          <input type="radio" name="label" value="yes" :checked="camTP == 'yes'" v-model="camTP"> Yes<br>
-          <input type="radio" name="label" value="no" :checked="camTP == 'no'" v-model="camTP"> No<br>
-        </form>
-        <form style="display:none;" id="gradcam-fp">
-          <span style="color:#F79517">2. Does the GradCAM highlight one or more image regions NOT associated to COVID-19 lesions (false positive)?</span><br>
-          <input type="radio" name="label" value="yes" :checked="camFP == 'yes'" v-model="camFP"> Yes<br>
-          <input type="radio" name="label" value="no" :checked="camFP == 'no'" v-model="camFP"> No<br>
-        </form>
-        <button style="display:none;" id="save-cam-btn" @click="saveCamEval()">
-            <i class="fas fa-save" aria-hidden="true"> Save</i>
+  </nav>
+
+  <div id="disclaimer-layout" class="container-login100" style="background-image: url('https://github.com/nguyenhoa93/deepcoronascan-imjoy/raw/master/images/login-background.jpg');">
+    <div class="wrap-login100">
+      <span class="login100-form-logo">
+        <i class="fas fa-lungs-virus" aria-hidden="true"></i>
+      </span>
+
+      <span class="login100-form-title p-b-34 p-t-27">
+          DeepCoronaScan
+      </span>
+
+       <div class="text-center p-t-10 p-b-30">
+         <hr>
+        <font size="+1" color="#B03A2E">
+          <b><i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
+          DISCLAIMER: This tool is only used for research purpose, NOT ready for medical diagnosis.</b>
+        </font>
+        <br>
+        <hr>
+        <br>
+        By clicking the following button(s), I confirm to have understood the disclaimer.
+      </div>
+
+      <div class="container-login100-form-btn">
+        <button class="login100-form-btn" @click="goToPublic()">
+            <i class="far fa-play-circle" aria-hidden="true"> Live Demo</i>
         </button>
-        <div id="cf"></div>
-      </div> 
-      <div class="main" id="statistics">
-        <div id="annstats"></div>
-        <div id="experiments-chart"></div>
-        <!-- <iframe id="gradcam"
-          title="GradCAM"
-          width="100%"
-          height="750px"
-          src="https://hms-dbmi.github.io/vizarr/?source=https://s3.embassy.ebi.ac.uk/idr/zarr/v0.1/4495402.zarr">
-        </iframe> -->
-      </div>
-    </div>
-  
-    <div id="public-layout" style="display:none">
-      <hr>
-      <h1>Update soon</h1>
-      <button @click="goBackDisclaimer()">
-        <i class="fas fa-backward" aria-hidden="true" style='font-size:30px'></i>
-      </button>
-    </div>
-  
-    <div class="wrapper-footer">
-      <div class="container">
-        <footer class="footer">
-          <a href="https://sites.google.com/site/imagingandmodeling/" target="_blank">
-            <i class="svg-icon googleplus"></i>
-          </a>
-          <a href="https://twitter.com/ImodLab" target="_blank">
-            <i class="svg-icon twitter"></i>
-          </a>
-          <a href="https://github.com/imodpasteur" target="_blank">
-            <i class="svg-icon github"></i>
-          </a>
-        </footer>
-      </div>
+        <button id="eval-cam" v-if="client" class="login100-form-btn" style="display:none" @click="goToAuthen()">
+            GradCAM Evaluation
+        </button>
+      </div>     
     </div>
   </div>
-  </window>
-  
-  <style lang="css">
-  #avatar-img {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: #2193b0;
-    font-size: 30px;
-    color: #fff;
-    text-align: center;
-    line-height: 50px;
-    margin: 0px 0;
+
+  <div id="authen-layout" style="display:none">
+    <h1><center>GradCAM Evaluation</center></h1>
+    <div class="sidenav">
+      <hr style="color:#f1f1f1;">
+      <h3 style="text-align:center;">Choose a CT scan</h3>
+      <hr style="color:#f1f1f1;">
+      <ul id="scan-list">
+        <li v-for="sample in samples" :key="sample.name" :style="{background: sample.label}" @click="showCAM(sample.name)">
+          {{ sample.name }}
+        </li>
+      </ul>
+
+      <div id="cf"></div>
+    </div> 
+    <div class="main" id="statistics">
+      <div id="annstats"></div>
+      <div id="experiments-chart"></div>
+      <!-- <iframe id="gradcam"
+        title="GradCAM"
+        width="100%"
+        height="750px"
+        src="https://hms-dbmi.github.io/vizarr/?source=https://s3.embassy.ebi.ac.uk/idr/zarr/v0.1/4495402.zarr">
+      </iframe> -->
+      <hr style="border: 3px double #487;">
+      <h4 id="sample-name" style="color:#313A3E;background-color:#FFFFFF;display:none;">GradCAM of {{ selectedSample }}</h4>
+      <form style="display:none;" id="gradcam-tp">
+        <span style="color:#F79517"> 1. Does the GradCAM highlight at least one COVID-19 lesion (true positive)?</span><br>
+        <input type="radio" name="label" value="yes" :checked="camTP == 'yes'" v-model="camTP"> Yes<br>
+        <input type="radio" name="label" value="no" :checked="camTP == 'no'" v-model="camTP"> No<br>
+      </form>
+      <form style="display:none;" id="gradcam-fp">
+        <span style="color:#F79517">2. Does the GradCAM highlight one or more image regions NOT associated to COVID-19 lesions (false positive)?</span><br>
+        <input type="radio" name="label" value="yes" :checked="camFP == 'yes'" v-model="camFP"> Yes<br>
+        <input type="radio" name="label" value="no" :checked="camFP == 'no'" v-model="camFP"> No<br>
+      </form>
+      <button style="display:none;" id="save-cam-btn" @click="saveCamEval()">
+          <i class="fas fa-save" aria-hidden="true"> Save</i>
+      </button>
+    </div>
+  </div>
+
+  <div id="public-layout" style="display:none">
+    <hr>
+    <h1>Update soon</h1>
+    <button @click="goBackDisclaimer()">
+      <i class="fas fa-backward" aria-hidden="true" style='font-size:30px'></i>
+    </button>
+  </div>
+
+  <div class="wrapper-footer">
+    <div class="container">
+      <footer class="footer">
+        <a href="https://sites.google.com/site/imagingandmodeling/" target="_blank">
+          <i class="svg-icon googleplus"></i>
+        </a>
+        <a href="https://twitter.com/ImodLab" target="_blank">
+          <i class="svg-icon twitter"></i>
+        </a>
+        <a href="https://github.com/imodpasteur" target="_blank">
+          <i class="svg-icon github"></i>
+        </a>
+      </footer>
+    </div>
+  </div>
+</div>
+</window>
+
+<style lang="css">
+#avatar-img {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #2193b0;
+  font-size: 30px;
+  color: #fff;
+  text-align: center;
+  line-height: 50px;
+  margin: 0px 0;
+}
+/* Create two columns/boxes that floats next to each other */
+.sidenav {
+  float: left;
+  width: 50%;
+  background: #222222;
+  padding: 20px;
+}
+
+.main button {
+  background-color: #2193b0;
+  border: none;
+  color: white;
+  padding: 15px 32px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
+}
+
+.sidenav ul li {
+  padding: 6px 8px 6px 16px;
+  text-decoration: none;
+  font-size: 20px;
+  color: #818181;
+  display: block;
+}
+
+.sidenav ul li:hover {
+  color: #f1f1f1;
+}
+
+.sidenav form {
+  font-size: 20px;
+  color: #f1f1f1;
+}
+
+.sidenav h3 {
+  color: #f1f1f1;
+}
+
+.sidenav ul{height:500px; width:90%;}
+.sidenav ul{overflow:hidden; overflow-y:scroll;}
+
+.main {
+  float: left;
+  padding: 20px;
+  width: 50%;
+  background-color: #f1f1f1;
+}
+
+/* Clear floats after the columns */
+section::after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+/* Responsive layout - makes the two columns/boxes stack on top of each other instead of next to each other, on small screens */
+@media (max-width: 600px) {
+  sidenav, main {
+    width: 100%;
+    height: auto;
   }
-  /* Create two columns/boxes that floats next to each other */
-  .sidenav {
-    float: left;
-    width: 50%;
-    background: #222222;
-    padding: 20px;
-  }
-  
-  .sidenav button {
-    background-color: #2193b0;
-    border: none;
-    color: white;
-    padding: 15px 32px;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 16px;
-    margin: 4px 2px;
-    cursor: pointer;
-  }
-  
-  .sidenav ul li {
-    padding: 6px 8px 6px 16px;
-    text-decoration: none;
-    font-size: 20px;
-    color: #818181;
-    display: block;
-  }
-  
-  .sidenav ul li:hover {
-    color: #f1f1f1;
-  }
-  
-  .sidenav form {
-    font-size: 20px;
-    color: #f1f1f1;
-  }
-  
-  .sidenav h3 {
-    color: #f1f1f1;
-  }
-  
-  .sidenav ul{height:300px; width:90%;}
-  .sidenav ul{overflow:hidden; overflow-y:scroll;}
-  
-  .main {
-    float: left;
-    padding: 20px;
-    width: 50%;
-    background-color: #f1f1f1;
-  }
-  
-  /* Clear floats after the columns */
-  section::after {
-    content: "";
-    display: table;
-    clear: both;
-  }
-  
-  /* Responsive layout - makes the two columns/boxes stack on top of each other instead of next to each other, on small screens */
-  @media (max-width: 600px) {
-    sidenav, main {
-      width: 100%;
-      height: auto;
-    }
-  }
-  </style>
+}
+</style>
