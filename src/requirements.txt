@@ -1,0 +1,5 @@
+tifffile
+requests
+numpy
+zipfile
+boto3

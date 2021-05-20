@@ -29,13 +29,10 @@ with open("data/uploaded.txt", "r") as f:
 print("Uploaded: ", len(uploaded))
     
 all_samples = [x for x in all_samples if x not in uploaded]
-with open("data/uploaded.txt", "w") as f:
-    for item in uploaded + all_samples:
-        f.write("{}\n".format(item))
+
 # %% Upload stats
 print("Upload statistics")
-STATS_FILES = ["image.ome.tif", "cam.ome.tif",
-               "image.ome.tif_offsets.json", "cam.ome.tif_offsets.json"]
+STATS_FILES = ["image.ome.tif", "image.ome.tif_offsets.json"]
 sample_id = "stats"
 print(f"===> Uploading {sample_id} ...")
 response = requests.get(
@@ -144,7 +141,12 @@ for sample_id in all_samples:
             if convert_result['completed']:
                 break
             time.sleep(1)      
-            
+    
+    with open("data/uploaded.txt", "w") as f:
+        uploaded += [sample_id]
+        for item in uploaded:
+            f.write("{}\n".format(item))
+                  
     # now refresh this sample
     response = requests.post(
         BASE_URL + f"/dataset/{DATASET_ID}/sample/{sample_id}/refresh",

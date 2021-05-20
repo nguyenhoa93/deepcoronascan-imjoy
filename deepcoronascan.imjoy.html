@@ -493,24 +493,28 @@ const app = new Vue({
 
       const img = {
         "source": im_store,
-        "name": this.selectedSample,
-        "axis_labels": ["z-axis", "Grayscale", "Green"],
-        "names": ["Grayscale"]}
+        "name": "Test",
+        "channel_axis": 1,
+        "axis_labels": ["z_axis", "Image", "Red", "Green", "Blue"],
+        "colors": [ "#FFFFFF", "#FF0102", "#07FF00", "#1402FF"],   
+        "names": ["Image", "Red", "Green", "Blue"],        
+        "visibilities": [true, true, true, true],           
+  //       "contrast_limits": [[60, 12000], [0, 10000]], 
+      }
       await viewer.add_image(img)
 
       // cam
-      const cam_refUrl = this.sample.input_files["cam.ome.tif_offsets.json"]
-      const cam_targetUrl = this.sample.input_files["cam.ome.tif"]
-      const cam_store = await FileReferenceStore.fromUrl(cam_refUrl, cam_targetUrl)
-      const cam = {
-        "source": cam_store,
-        "name": "GradCAM",
-        "channel_axis": 1,
-        "axis_labels": ["z-axis", "Red", "Green", "Blue"],
-        "names": ["Red", "Green", "Blue"],
-        "visibilities": [true, true, true]}
-      await viewer.add_image(cam)
-      
+      // const cam_refUrl = this.sample.input_files["cam.ome.tif_offsets.json"]
+      // const cam_targetUrl = this.sample.input_files["cam.ome.tif"]
+      // const cam_store = await FileReferenceStore.fromUrl(cam_refUrl, cam_targetUrl)
+      // const cam = {
+      //   "source": cam_store,
+      //   "name": "GradCAM",
+      //   "channel_axis": 1,
+      //   "axis_labels": ["z-axis", "Red", "Green", "Blue"],
+      //   "names": ["Red", "Green", "Blue"],
+      //   "visibilities": [true, true, true]}
+      // await viewer.add_image(cam)
     },
 
     async saveCamEval(){
